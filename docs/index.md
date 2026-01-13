@@ -17,7 +17,6 @@ Windows and Linux are currently supported. macOS is coming soon.
 
 ## Coming Soon
 - More language models
-- Lower-case text support
 - Model Manager + Automatic update
 - Capture from specific applications (depending on OS capabilities)
 - macOS support
