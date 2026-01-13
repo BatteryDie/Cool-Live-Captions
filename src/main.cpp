@@ -64,6 +64,7 @@ struct AppSettings {
   bool auto_scroll = true;
   bool break_lines = true;
   bool profanity_filter = false;
+  bool lower_case = false;
 };
 
 std::string detect_language_from_model(const std::filesystem::path &model_path) {
@@ -82,6 +83,29 @@ std::string detect_language_from_model(const std::filesystem::path &model_path) 
     return code;
   }
   return "en";
+}
+
+std::string apply_lower_case(std::string_view text) {
+  std::string out;
+  out.reserve(text.size());
+  bool cap_next = true;
+  for (char ch : text) {
+    unsigned char c = static_cast<unsigned char>(ch);
+    bool is_alpha = std::isalpha(c) != 0;
+    char lowered = static_cast<char>(std::tolower(c));
+    char emit = lowered;
+    if (is_alpha && cap_next) {
+      emit = static_cast<char>(std::toupper(c));
+      cap_next = false;
+    }
+    out.push_back(emit);
+    if (ch == '.' || ch == '!' || ch == '?' || ch == '\n') {
+      cap_next = true;
+    } else if (is_alpha) {
+      cap_next = false;
+    }
+  }
+  return out;
 }
 
 std::filesystem::path configure_imgui_ini(ImGuiIO &io, const std::filesystem::path &exe_path) {
@@ -121,6 +145,8 @@ void load_settings(const std::filesystem::path &path, AppSettings &settings) {
       settings.break_lines = line.find("=1") != std::string::npos;
     } else if (line.rfind("profanity_filter=", 0) == 0) {
       settings.profanity_filter = line.find("=1") != std::string::npos;
+    } else if (line.rfind("lower_case=", 0) == 0) {
+      settings.lower_case = line.find("=1") != std::string::npos;
     }
   }
 }
@@ -132,7 +158,8 @@ void save_settings(const std::filesystem::path &path, const AppSettings &setting
     std::string line;
     while (std::getline(in, line)) {
       if (line.rfind("always_on_top=", 0) == 0 || line.rfind("font_size=", 0) == 0 ||
-          line.rfind("auto_scroll=", 0) == 0 || line.rfind("break_lines=", 0) == 0) {
+          line.rfind("auto_scroll=", 0) == 0 || line.rfind("break_lines=", 0) == 0 ||
+          line.rfind("profanity_filter=", 0) == 0 || line.rfind("lower_case=", 0) == 0) {
         continue;
       }
       lines.push_back(line);
@@ -143,6 +170,7 @@ void save_settings(const std::filesystem::path &path, const AppSettings &setting
   lines.push_back(std::string("auto_scroll=") + (settings.auto_scroll ? "1" : "0"));
   lines.push_back(std::string("break_lines=") + (settings.break_lines ? "1" : "0"));
   lines.push_back(std::string("profanity_filter=") + (settings.profanity_filter ? "1" : "0"));
+  lines.push_back(std::string("lower_case=") + (settings.lower_case ? "1" : "0"));
   std::ofstream out(path, std::ios::trunc);
   for (const auto &l : lines) {
     out << l << '\n';
@@ -315,6 +343,7 @@ int main(int argc, char **argv) {
   float pending_font_size = settings.font_size_px;
   bool auto_scroll_enabled = settings.auto_scroll;
   bool profanity_filter_enabled = settings.profanity_filter;
+  bool lower_case_enabled = settings.lower_case;
 
   while (!glfwWindowShouldClose(window)) {
     glfwPollEvents();
@@ -353,7 +382,8 @@ int main(int argc, char **argv) {
     }
 
     if (auto text = engine.poll_text()) {
-      auto filtered = profanity_filter_enabled ? profanity.filter(*text) : *text;
+      auto normalized = lower_case_enabled ? apply_lower_case(*text) : *text;
+      auto filtered = profanity_filter_enabled ? profanity.filter(normalized) : normalized;
       if (settings.break_lines && !caption.buffer().empty()) {
         caption.append("\n");
       }
@@ -363,7 +393,8 @@ int main(int argc, char **argv) {
     auto partial_raw = engine.peek_partial();
     std::optional<std::string> partial_filtered;
     if (partial_raw && !partial_raw->empty()) {
-      partial_filtered = profanity_filter_enabled ? profanity.filter(*partial_raw) : *partial_raw;
+      auto normalized_partial = lower_case_enabled ? apply_lower_case(*partial_raw) : *partial_raw;
+      partial_filtered = profanity_filter_enabled ? profanity.filter(normalized_partial) : normalized_partial;
     }
 
     ImGui_ImplOpenGL3_NewFrame();
@@ -427,6 +458,12 @@ int main(int argc, char **argv) {
         bool break_lines_menu = settings.break_lines;
         if (ImGui::MenuItem("Break Lines", nullptr, break_lines_menu)) {
           settings.break_lines = !break_lines_menu;
+          save_settings(settings_path, settings);
+        }
+        bool lower_case_menu = lower_case_enabled;
+        if (ImGui::MenuItem("Lower Case Text", nullptr, lower_case_menu)) {
+          lower_case_enabled = !lower_case_menu;
+          settings.lower_case = lower_case_enabled;
           save_settings(settings_path, settings);
         }
         bool profanity_menu = profanity_filter_enabled;
