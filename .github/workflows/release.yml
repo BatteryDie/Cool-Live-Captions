@@ -15,12 +15,18 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup MSVC environment
-        uses: ilammy/msvc-dev-cmd@v1
+      - name: Setup MSYS2 / Mingw-w64
+        uses: msys2/setup-msys2@v2
         with:
-          arch: x64
+          msystem: MINGW64
+          update: true
+          install: >
+            mingw-w64-x86_64-toolchain
+            mingw-w64-x86_64-cmake
+            mingw-w64-x86_64-ninja
 
       - name: Configure CMake (Release)
+        shell: msys2 {0}
         run: >
           cmake -S . -B build
           -G "Ninja"
@@ -30,6 +36,7 @@ jobs:
           -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY="${{ github.workspace }}/build/lib"
 
       - name: Build
+        shell: msys2 {0}
         run: cmake --build build --config Release --parallel
 
       - name: Install Inno Setup
