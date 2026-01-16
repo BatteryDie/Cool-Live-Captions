@@ -70,56 +70,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  linux-release-deb:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Install build deps
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            ninja-build dpkg-dev \
-            libgl1-mesa-dev libglu1-mesa-dev \
-            libx11-dev libxrandr-dev libxinerama-dev libxi-dev libxcursor-dev \
-            libxkbcommon-dev libwayland-dev wayland-protocols libpipewire-0.3-dev \
-            libspa-0.2-dev
-
-      - name: Configure CMake (Release)
-        run: |
-          cmake -S . -B build-linux-release \
-            -G Ninja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_POLICY_VERSION_MINIMUM=3.5
-
-      - name: Build
-        run: cmake --build build-linux-release --parallel
-
-      - name: Make deb script executable
-        run: chmod +x deploy/linux-deb.sh
-
-      - name: Build .deb
-        run: |
-          VERSION=${{ github.ref_name }}
-          VERSION=${VERSION#v}
-          BUILD_DIR=${{ github.workspace }}/build-linux-release \
-          VERSION=${VERSION} \
-          ./deploy/linux-deb.sh
-
-      - name: Upload .deb artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: cool-live-captions-deb-${{ github.ref_name }}
-          path: build/deb/cool-live-captions_*_amd64.deb
-
-      - name: Publish GitHub Release asset (.deb)
-        uses: softprops/action-gh-release@v2
-        with:
-          files: build/deb/cool-live-captions_*_amd64.deb
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   linux-release-appimage:
     runs-on: ubuntu-latest
     steps:
