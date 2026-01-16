@@ -14,6 +14,7 @@ APPNAME="Cool Live Caption"
 BIN_NAME="coollivecaptions"
 ICON_SRC_PNG="${ROOT_DIR}/resources/icon-appimage.png"
 DESKTOP_FILE="${APPDIR}/usr/share/applications/${BIN_NAME}.desktop"
+BUNDLE_AUDIO_LIBS=${BUNDLE_AUDIO_LIBS:-0}
 
 cmake -S "${ROOT_DIR}" -B "${BUILD_DIR}" -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build "${BUILD_DIR}" --target "${BIN_NAME}"
@@ -62,13 +63,21 @@ fi
 
 export APPIMAGE_EXTRACT_AND_RUN=1
 
-"${LINUXDEPLOY}" \
-	--appdir "${APPDIR}" \
-	--executable "${APPDIR}/usr/bin/${BIN_NAME}" \
-	--desktop-file "${DESKTOP_FILE}" \
-	--icon-file "${APPDIR}/usr/share/icons/hicolor/256x256/apps/${BIN_NAME}.png" \
-	--exclude-library "libpulse*" \
-	--exclude-library "libpipewire-0.3*"
+LINUXDEPLOY_ARGS=(
+	--appdir "${APPDIR}"
+	--executable "${APPDIR}/usr/bin/${BIN_NAME}"
+	--desktop-file "${DESKTOP_FILE}"
+	--icon-file "${APPDIR}/usr/share/icons/hicolor/256x256/apps/${BIN_NAME}.png"
+)
+
+if [[ "${BUNDLE_AUDIO_LIBS}" -eq 0 ]]; then
+	LINUXDEPLOY_ARGS+=(
+		--exclude-library "libpulse*"
+		--exclude-library "libpipewire-0.3*"
+	)
+fi
+
+"${LINUXDEPLOY}" "${LINUXDEPLOY_ARGS[@]}"
 
 "${APPIMAGETOOL}" "${APPDIR}" "${BUILD_DIR}/${APPNAME}.AppImage"
 

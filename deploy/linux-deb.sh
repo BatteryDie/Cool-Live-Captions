@@ -38,6 +38,7 @@ PKG_NAME=cool-live-captions
 BIN_NAME=coollivecaptions
 BIN_SRC="${BUILD_DIR}/bin/${BIN_NAME}"
 LIB_SRC_DIR="${BUILD_DIR}/bin"
+APP_LIB_DIR="/usr/lib/${PKG_NAME}"
 DESKTOP_SRC="${ROOT_DIR}/resources/com.batterydie.coollivecaptions.desktop"
 APPDATA_SRC="${ROOT_DIR}/resources/com.batterydie.coollivecaptions.appdata.xml"
 ICON_SRC="${ROOT_DIR}/resources/icon-appimage.png"
@@ -50,22 +51,39 @@ fi
 rm -rf "${PKG_ROOT}"
 mkdir -p "${PKG_ROOT}/DEBIAN" \
          "${PKG_ROOT}/usr/bin" \
-         "${PKG_ROOT}/usr/lib/${PKG_NAME}" \
+         "${PKG_ROOT}${APP_LIB_DIR}" \
          "${PKG_ROOT}/usr/share/applications" \
          "${PKG_ROOT}/usr/share/icons/hicolor/256x256/apps" \
          "${PKG_ROOT}/usr/share/metainfo"
 
-# Copy binary and add a hyphenated symlink for convenience
-cp "${BIN_SRC}" "${PKG_ROOT}/usr/bin/${BIN_NAME}"
-ln -sf "${BIN_NAME}" "${PKG_ROOT}/usr/bin/${PKG_NAME}"
+# Copy binary into private lib dir and create a wrapper so LD_LIBRARY_PATH includes bundled libs
+cp "${BIN_SRC}" "${PKG_ROOT}${APP_LIB_DIR}/${BIN_NAME}"
 
 # Copy private libs (onnx/april-asr if present) and profanity lists
 if compgen -G "${LIB_SRC_DIR}/*.so" > /dev/null; then
-  cp "${LIB_SRC_DIR}"/*.so "${PKG_ROOT}/usr/lib/${PKG_NAME}/"
+  cp "${LIB_SRC_DIR}"/*.so "${PKG_ROOT}${APP_LIB_DIR}/"
 fi
+# Grab april-asr if it lives outside bin (CI layout)
+while IFS= read -r lib; do
+  cp "$lib" "${PKG_ROOT}${APP_LIB_DIR}/"
+done < <(find "${BUILD_DIR}" -maxdepth 4 -type f -name "libaprilasr.so*" 2>/dev/null | sort -u)
+# Profanity lists
 if [[ -d "${LIB_SRC_DIR}/profanity" ]]; then
-  cp -r "${LIB_SRC_DIR}/profanity" "${PKG_ROOT}/usr/lib/${PKG_NAME}/"
+  cp -r "${LIB_SRC_DIR}/profanity" "${PKG_ROOT}${APP_LIB_DIR}/"
 fi
+
+# Wrapper to set library path and run the real binary
+cat > "${PKG_ROOT}/usr/bin/${BIN_NAME}" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+APP_LIB_DIR="/usr/lib/cool-live-captions"
+export LD_LIBRARY_PATH="${APP_LIB_DIR}:${LD_LIBRARY_PATH:-}"
+exec "${APP_LIB_DIR}/coollivecaptions" "$@"
+EOF
+chmod 0755 "${PKG_ROOT}/usr/bin/${BIN_NAME}"
+
+# Hyphenated symlink for convenience
+ln -sf "${BIN_NAME}" "${PKG_ROOT}/usr/bin/${PKG_NAME}"
 
 # Desktop entry (generate a simple one if missing in repo)
 DESKTOP_TARGET="${PKG_ROOT}/usr/share/applications/com.batterydie.coollivecaptions.desktop"
