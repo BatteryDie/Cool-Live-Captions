@@ -78,21 +78,21 @@ bool ModelManager::is_supported(const std::filesystem::path &path) {
 std::filesystem::path ModelManager::detect_user_dir() {
 #if defined(_WIN32)
   if (const char *localAppData = std::getenv("LOCALAPPDATA")) {
-    return std::filesystem::path(localAppData) / "CoolLiveCaption" / "models";
+    return std::filesystem::path(localAppData) / "CoolLiveCaptions" / "models";
   }
   if (const char *appData = std::getenv("APPDATA")) {
-    return std::filesystem::path(appData) / "CoolLiveCaption" / "models";
+    return std::filesystem::path(appData) / "CoolLiveCaptions" / "models";
   }
   if (const char *userProfile = std::getenv("USERPROFILE")) {
-    return std::filesystem::path(userProfile) / "CoolLiveCaption" / "models";
+    return std::filesystem::path(userProfile) / "CoolLiveCaptions" / "models";
   }
 #elif defined(__APPLE__)
   if (const char *home = std::getenv("HOME")) {
-    return std::filesystem::path(home) / "Library" / "Application Support" / "com.batterydie.coollivecaption" / "models";
+    return std::filesystem::path(home) / "Library" / "Application Support" / "com.batterydie.coollivecaptions" / "models";
   }
 #else
   if (const char *home = std::getenv("HOME")) {
-    return std::filesystem::path(home) / ".coollivecaption" / "models";
+    return std::filesystem::path(home) / ".coollivecaptions" / "models";
   }
 #endif
   return {};

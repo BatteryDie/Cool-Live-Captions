@@ -30,7 +30,7 @@ bool AudioLinux::start(size_t sample_rate, int source, SampleHandler handler) {
   sample_rate_ = sample_rate;
   source_ = source;
 
-  loop_ = pw_thread_loop_new("coollivecaption-audio", nullptr);
+  loop_ = pw_thread_loop_new("coollivecaptions-audio", nullptr);
   if (!loop_) {
     return false;
   }
@@ -72,7 +72,7 @@ bool AudioLinux::start(size_t sample_rate, int source, SampleHandler handler) {
   };
 
   stream_ = pw_stream_new_simple(pw_thread_loop_get_loop(loop_),
-                                 "CoolLiveCaption Capture",
+                                 "CoolLiveCaptions Capture",
                                  props,
                                  &stream_events,
                                  this);

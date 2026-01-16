@@ -1,10 +1,10 @@
 ; Inno Setup Script for Cool Live Caption
 ; Requires Inno Setup 6.0 or later: https://jrsoftware.org/isinfo.php
 
-#define AppName "Cool Live Caption"
+#define AppName "Cool Live Captions"
 #define AppVersion "0.1.0"
 #define AppPublisher "Luca Jones"
-#define AppExeName "coollivecaption.exe"
+#define AppExeName "coollivecaptions.exe"
 
 [Setup]
 AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}}
@@ -16,7 +16,7 @@ DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=../build/installer_output
-OutputBaseFilename=CoolLiveCaptionSetup
+OutputBaseFilename=CoolLiveCaptionsSetup
 Compression=lzma
 SolidCompression=yes
 WizardStyle=modern dynamic
@@ -44,7 +44,7 @@ Source: "..\\THIRD-PARTY-LICENSES.md"; DestDir: "{app}"; Flags: ignoreversion; C
 
 [Icons]
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"
-Name: "{group}\Models Folder"; Filename: "{localappdata}\coollivecaption\models"
+Name: "{group}\Models Folder"; Filename: "{localappdata}\coollivecaptions\models"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: desktopicon
 
 [Run]
@@ -55,7 +55,7 @@ procedure InitializeWizard;
 var
   ModelsDir: String;
 begin
-  ModelsDir := ExpandConstant('{localappdata}\coollivecaption\models');
+  ModelsDir := ExpandConstant('{localappdata}\coollivecaptions\models');
   if not DirExists(ModelsDir) then
     CreateDir(ModelsDir);
 end;

@@ -1,4 +1,4 @@
-Cool Live Caption - Third Party Licenses
+Cool Live Captions - Third Party Licenses
 =========================================
 
 This software uses the following third-party libraries:

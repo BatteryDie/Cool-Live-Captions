@@ -1,9 +1,9 @@
-title: Cool Live Caption
+title: Cool Live Captions
 description: FOSS desktop live captioning application
 remote_theme: pages-themes/cayman@v0.2.0
 plugins:
   - jekyll-feed
   - jekyll-seo-tag
   - jekyll-remote-theme
-repository: batterydie/cool-live-caption
+repository: batterydie/cool-live-captions
 show_downloads: false

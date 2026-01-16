@@ -1,4 +1,4 @@
-## Cool Live Caption
+## Cool Live Captions
 
 A free and open source live caption desktop application that converts audio from your microphone or system audio to text in real-time. The speech recognition is powered by april-asr library with ONNX format. All processed on-device using your CPU.
 
@@ -9,14 +9,14 @@ A free and open source live caption desktop application that converts audio from
 
 ### Location for Models, Transcripts, and Settings
 - Models are loaded from your per-user models folder:
-  - Windows: `%LOCALAPPDATA%/coollivecaption/models`
-  - macOS: `~/Library/Application Support/com.batterydie.coollivecaption/models`
-  - Linux: `~/.coollivecaption/models`
-- Transcripts are saved to `{Documents}/Cool Live Caption/transcription-{timestamp}.txt` by default.
+  - Windows: `%LOCALAPPDATA%/coollivecaptions/models`
+  - macOS: `~/Library/Application Support/com.batterydie.coollivecaptions/models`
+  - Linux: `~/.coollivecaptions/models`
+- Transcripts are saved to `{Documents}/Cool Live Captions/transcription-{timestamp}.txt` by default.
 - Settings are stored in the user config directory:
-  - Windows: `%LOCALAPPDATA%/coollivecaption/settings.ini`
-  - macOS: `~/Library/Application Support/com.batterydie.coollivecaption/settings.ini`
-  - Linux: `~/.config/coollivecaption/settings.ini`
+  - Windows: `%LOCALAPPDATA%/coollivecaptions/settings.ini`
+  - macOS: `~/Library/Application Support/com.batterydie.coollivecaptions/settings.ini`
+  - Linux: `~/.config/coollivecaptions/settings.ini`
 
 ### Requirements
 - CMake 3.24
@@ -30,17 +30,17 @@ A free and open source live caption desktop application that converts audio from
 2. Install and launch the app.
 3. Download `april-english-dev-01110_en.april` model from link: https://abb128.github.io/april-asr/models.html
 4. Place the model file into your models folder (created on first run or by installer)
-   - Windows: `%LOCALAPPDATA%/coollivecaption/models`
-   - macOS: `~/Library/Application Support/com.batterydie.coollivecaption/models`
-   - Linux: `~/.coollivecaption/models`
+   - Windows: `%LOCALAPPDATA%/coollivecaptions/models`
+   - macOS: `~/Library/Application Support/com.batterydie.coollivecaptions/models`
+   - Linux: `~/.coollivecaptions/models`
 
 ### Quick Start for Developers
 1. Clone the repo.
-2. Configure and build with your preferred GCC/Clang toolchain (examples below). Run the produced `bin/coollivecaption` executable.
+2. Configure and build with your preferred GCC/Clang toolchain (examples below). Run the produced `bin/coollivecaptions` executable.
 3. Add at least one model file into your models folder (created on first run or by installer)
-   - Windows: `%LOCALAPPDATA%/coollivecaption/models`
-   - macOS: `~/Library/Application Support/com.batterydie.coollivecaption/models`
-   - Linux: `~/.coollivecaption/models`
+   - Windows: `%LOCALAPPDATA%/coollivecaptions/models`
+   - macOS: `~/Library/Application Support/com.batterydie.coollivecaptions/models`
+   - Linux: `~/.coollivecaptions/models`
 
 ### Build: Windows (MinGW)
 
@@ -80,7 +80,7 @@ cmake --build build-macos-debug
 ```
 
 ### Run
-Place models in your per-user models folder (see above). Launch the app; choose Audio Source and Caption Model from the menubar. Captions appear in the main window and are saved to `{Documents}/Cool Live Caption/transcription-{timestamp}.md`.
+Place models in your per-user models folder (see above). Launch the app; choose Audio Source and Caption Model from the menubar. Captions appear in the main window and are saved to `{Documents}/Cool Live Captions/transcription-{timestamp}.md`.
 
 ## Acknowledgements
 
@@ -94,4 +94,4 @@ I would like to thank to abb128 (and contributors of april-asr) for creating apr
 
 ## License
 
-Cool Live Caption is free software licensed under GPL-3.0. See [LICENSE](LICENSE) for details.
+Cool Live Captions is free software licensed under GPL-3.0. See [LICENSE](LICENSE) for details.

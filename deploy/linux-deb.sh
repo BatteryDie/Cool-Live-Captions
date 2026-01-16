@@ -11,11 +11,11 @@ VERSION=${VERSION:-"0.1.0"}
 PKG_ROOT="${ROOT_DIR}/build/deb/pkg-root"
 OUT_DIR="${ROOT_DIR}/build/deb"
 ARCH=amd64
-PKG_NAME=cool-live-caption
-BIN_SRC="${BUILD_DIR}/bin/coollivecaption"
+PKG_NAME=cool-live-captions
+BIN_SRC="${BUILD_DIR}/bin/coollivecaptions"
 LIB_SRC_DIR="${BUILD_DIR}/bin"
-DESKTOP_SRC="${ROOT_DIR}/resources/flatpak/com.batterydie.CoolLiveCaption.desktop"
-APPDATA_SRC="${ROOT_DIR}/resources/flatpak/com.batterydie.CoolLiveCaption.appdata.xml"
+DESKTOP_SRC="${ROOT_DIR}/resources/flatpak/com.batterydie.coollivecaptions.desktop"
+APPDATA_SRC="${ROOT_DIR}/resources/flatpak/com.batterydie.coollivecaptions.appdata.xml"
 ICON_SRC="${ROOT_DIR}/resources/icon.png"
 
 if [[ ! -x "${BIN_SRC}" ]]; then
@@ -44,17 +44,17 @@ fi
 
 # Desktop entry
 if [[ -f "${DESKTOP_SRC}" ]]; then
-  install -Dm644 "${DESKTOP_SRC}" "${PKG_ROOT}/usr/share/applications/com.batterydie.CoolLiveCaption.desktop"
+  install -Dm644 "${DESKTOP_SRC}" "${PKG_ROOT}/usr/share/applications/com.batterydie.coollivecaptions.desktop"
 fi
 
 # AppStream metadata
 if [[ -f "${APPDATA_SRC}" ]]; then
-  install -Dm644 "${APPDATA_SRC}" "${PKG_ROOT}/usr/share/metainfo/com.batterydie.CoolLiveCaption.appdata.xml"
+  install -Dm644 "${APPDATA_SRC}" "${PKG_ROOT}/usr/share/metainfo/com.batterydie.coollivecaptions.appdata.xml"
 fi
 
 # Icon
 if [[ -f "${ICON_SRC}" ]]; then
-  install -Dm644 "${ICON_SRC}" "${PKG_ROOT}/usr/share/icons/hicolor/256x256/apps/com.batterydie.CoolLiveCaption.png"
+  install -Dm644 "${ICON_SRC}" "${PKG_ROOT}/usr/share/icons/hicolor/256x256/apps/com.batterydie.coollivecaptions.png"
 fi
 
 # Control file
