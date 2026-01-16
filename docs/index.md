@@ -1,11 +1,11 @@
 ---
 layout: default
-title: Cool Live Caption
+title: Cool Live Captions
 ---
 
-# Cool Live Caption
+# Cool Live Captions
 
-> Note: Cool Live Caption is experimental and captions may not be 100% accurate.
+> Note: Cool Live Captions is experimental and captions may not be 100% accurate.
 
 A free and open source live caption desktop application that converts audio from your microphone or system audio to text in real-time. The speech recognition is powered by april-asr library with ONNX format. All processed on-device using your CPU.
 
@@ -26,7 +26,7 @@ Windows and Linux are currently supported. macOS is coming soon.
 ## Screenshot
 
 
-| ![Screenshot of Cool Live Caption on Windows](assets/screenshot01.png) | ![Screenshot of Cool Live Caption on Linux GNOME](assets/screenshot02.png) |
+| ![Screenshot of Cool Live Captions on Windows](assets/screenshot01.png) | ![Screenshot of Cool Live Captions on Linux GNOME](assets/screenshot02.png) |
 | --- | --- |
 | Windows 11 | Linux GNOME |
 
@@ -42,14 +42,9 @@ Windows and Linux are currently supported. macOS is coming soon.
 
 ## Download
 
-<div class="btn-group">
-   <a class="btn" href="https://github.com/BatteryDie/Cool-Live-Caption/releases/latest/download/cool-live-caption-v0.1.0.exe">Download .exe (Windows)</a>
-   <a class="btn" href="https://github.com/BatteryDie/Cool-Live-Caption/releases/latest/download/cool-live-caption_0.1.0_amd64.deb">Download .deb (Linux)</a>
-   <a class="btn" href="https://github.com/BatteryDie/Cool-Live-Caption/releases/latest/download/CoolLiveCaption-x86_64.AppImage">Download AppImage (Linux)</a>
-</div>
+Grab the latest build on the [Releases page](https://github.com/batterydie/cool-live-captions/releases).
 
-
-Or grab the latest build on the [Releases page](https://github.com/batterydie/cool-live-caption/releases).
+`.EXE.` is installer for Windows and `.DEB` is Debian package and `.AppImage` is AppImage format for Linux.
 
 For Linux AppImage, set executable permission via GUI or commandline before running.
 
@@ -65,4 +60,4 @@ I would like to thank to abb128 (and contributors of april-asr) for creating apr
 
 ## License
 
-Cool Live Caption is free software licensed under GPL-3.0. See [LICENSE](LICENSE) for details.
+Cool Live Captions is free software licensed under GPL-3.0. See [LICENSE](LICENSE) for details.

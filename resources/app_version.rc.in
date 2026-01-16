@@ -18,11 +18,11 @@ BEGIN
         BLOCK "040904b0"
         BEGIN
             VALUE "CompanyName", "@APP_COMPANY@"
-            VALUE "FileDescription", "Cool Live Caption"
+            VALUE "FileDescription", "Cool Live Captions"
             VALUE "FileVersion", "@APP_VERSION_STRING@"
-            VALUE "InternalName", "coollivecaption"
-            VALUE "OriginalFilename", "coollivecaption.exe"
-            VALUE "ProductName", "Cool Live Caption"
+            VALUE "InternalName", "coollivecaptions"
+            VALUE "OriginalFilename", "coollivecaptions.exe"
+            VALUE "ProductName", "Cool Live Captions"
             VALUE "ProductVersion", "@APP_VERSION_STRING@"
             VALUE "LegalCopyright", "@APP_COPYRIGHT@"
         END

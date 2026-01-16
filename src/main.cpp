@@ -52,14 +52,14 @@ void log_error(const std::string &msg) {
 std::filesystem::path user_config_dir(const std::filesystem::path &fallback) {
 #if defined(_WIN32)
   if (const char *local = std::getenv("LOCALAPPDATA")) {
-    return std::filesystem::path(local) / "CoolLiveCaption";
+    return std::filesystem::path(local) / "CoolLiveCaptions";
   }
 #endif
   if (const char *xdg = std::getenv("XDG_CONFIG_HOME")) {
-    return std::filesystem::path(xdg) / "CoolLiveCaption";
+    return std::filesystem::path(xdg) / "CoolLiveCaptions";
   }
   if (const char *home = std::getenv("HOME")) {
-    return std::filesystem::path(home) / ".config" / "CoolLiveCaption";
+    return std::filesystem::path(home) / ".config" / "CoolLiveCaptions";
   }
   return fallback;
 }
@@ -256,12 +256,12 @@ int main(int argc, char **argv) {
   glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
   glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
 #if defined(__linux__) && !defined(__APPLE__)
-  glfwWindowHintString(GLFW_WAYLAND_APP_ID, "coollivecaption");
-  glfwWindowHintString(GLFW_X11_CLASS_NAME, "CoolLiveCaption");
-  glfwWindowHintString(GLFW_X11_INSTANCE_NAME, "CoolLiveCaption");
+  glfwWindowHintString(GLFW_WAYLAND_APP_ID, "coollivecaptions");
+  glfwWindowHintString(GLFW_X11_CLASS_NAME, "CoolLiveCaptions");
+  glfwWindowHintString(GLFW_X11_INSTANCE_NAME, "CoolLiveCaptions");
 #endif
 
-  GLFWwindow *window = glfwCreateWindow(1280, 720, "Cool Live Caption", nullptr, nullptr);
+  GLFWwindow *window = glfwCreateWindow(1280, 720, "Cool Live Captions", nullptr, nullptr);
   if (!window) {
     glfwTerminate();
     return 1;

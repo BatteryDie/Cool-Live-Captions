@@ -9,9 +9,9 @@ set -euo pipefail
 
 ROOT_DIR=$(cd -- "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 BUILD_DIR="${ROOT_DIR}/build-appimage"
-APPDIR="${BUILD_DIR}/CoolLiveCaption.AppDir"
+APPDIR="${BUILD_DIR}/coollivecaptions.AppDir"
 APPNAME="Cool Live Caption"
-BIN_NAME="coollivecaption"
+BIN_NAME="coollivecaptions"
 ICON_SRC_PNG="${ROOT_DIR}/resources/icon-appimage.png"
 DESKTOP_FILE="${APPDIR}/usr/share/applications/${BIN_NAME}.desktop"
 
@@ -34,7 +34,7 @@ fi
 cat > "${DESKTOP_FILE}" <<EOF
 [Desktop Entry]
 Type=Application
-Name=Cool Live Caption
+Name=Cool Live Captions
 Exec=${BIN_NAME}
 Icon=${BIN_NAME}
 Categories=AudioVideo;Utility;
