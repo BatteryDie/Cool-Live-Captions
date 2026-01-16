@@ -22,6 +22,7 @@ Windows and Linux are currently supported. macOS is coming soon.
 - Model Manager + Automatic update
 - Capture from specific applications (depending on OS capabilities)
 - macOS support
+- Application Updater
 
 ## Screenshot
 
@@ -44,9 +45,9 @@ Windows and Linux are currently supported. macOS is coming soon.
 
 Grab the latest build on the [Releases page](https://github.com/batterydie/cool-live-captions/releases).
 
-`.EXE.` is installer for Windows and `.DEB` is Debian package and `.AppImage` is AppImage format for Linux.
+> `.EXE` is installer for Windows and `.DEB` is Debian package and `.AppImage` is portable application format for Linux.
 
-For Linux AppImage, set executable permission via GUI or commandline before running.
+For AppImage file, set executable permission via GUI or commandline before running.
 
 ## Acknowledgements
 
