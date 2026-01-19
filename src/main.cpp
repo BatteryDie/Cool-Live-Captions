@@ -593,19 +593,30 @@ int run_app(int argc, char **argv) {
       ImGui::OpenPopup("Download a Caption Model");
     }
 
-    if (ImGui::BeginPopupModal("Download a Caption Model", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+    if (ImGui::BeginPopupModal("Download a Caption Model", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove)) {
+      ImVec2 modal_size = ImVec2(std::min(640.0f, io.DisplaySize.x * 0.6f), std::min(320.0f, io.DisplaySize.y * 0.35f));
+      ImGui::SetWindowSize(modal_size);
+      ImGui::SetWindowPos(ImVec2((io.DisplaySize.x - modal_size.x) * 0.5f, (io.DisplaySize.y - modal_size.y) * 0.5f));
+      const float footer_h = 130.0f;
+      ImGui::BeginChild("first_run_body", ImVec2(-FLT_MIN, modal_size.y - footer_h), false, ImGuiWindowFlags_None);
       ImGui::TextWrapped("No models found. Would you like to download a caption model now?");
-      if (ImGui::Button("Yes")) {
+      ImGui::EndChild();
+
+      ImGui::Dummy(ImVec2(0.0f, 6.0f));
+      ImGui::SetCursorPosX((ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x) * 0.5f - 110.0f);
+      ImGui::BeginGroup();
+      if (ImGui::Button("Yes", ImVec2(110, 0))) {
         managed_ui.open_modal = true;
         start_manifest_fetch();
         first_run_modal = false;
         ImGui::CloseCurrentPopup();
       }
       ImGui::SameLine();
-      if (ImGui::Button("No")) {
+      if (ImGui::Button("No", ImVec2(110, 0))) {
         first_run_modal = false;
         ImGui::CloseCurrentPopup();
       }
+      ImGui::EndGroup();
       ImGui::EndPopup();
     }
 
