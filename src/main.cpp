@@ -73,7 +73,8 @@ struct AppSettings {
   bool auto_scroll = true;
   bool break_lines = true;
   bool profanity_filter = false;
-  bool lower_case = false;
+  bool lower_case = true;
+  bool auto_check_updates = true;
 };
 
 std::string detect_language_from_model(const std::filesystem::path &model_path) {
@@ -156,6 +157,8 @@ void load_settings(const std::filesystem::path &path, AppSettings &settings) {
       settings.profanity_filter = line.find("=1") != std::string::npos;
     } else if (line.rfind("lower_case=", 0) == 0) {
       settings.lower_case = line.find("=1") != std::string::npos;
+    } else if (line.rfind("auto_check_updates=", 0) == 0) {
+      settings.auto_check_updates = line.find("=1") != std::string::npos;
     }
   }
 }
@@ -168,7 +171,8 @@ void save_settings(const std::filesystem::path &path, const AppSettings &setting
     while (std::getline(in, line)) {
       if (line.rfind("always_on_top=", 0) == 0 || line.rfind("font_size=", 0) == 0 ||
           line.rfind("auto_scroll=", 0) == 0 || line.rfind("break_lines=", 0) == 0 ||
-          line.rfind("profanity_filter=", 0) == 0 || line.rfind("lower_case=", 0) == 0) {
+          line.rfind("profanity_filter=", 0) == 0 || line.rfind("lower_case=", 0) == 0 ||
+          line.rfind("auto_check_updates=", 0) == 0) {
         continue;
       }
       lines.push_back(line);
@@ -180,6 +184,7 @@ void save_settings(const std::filesystem::path &path, const AppSettings &setting
   lines.push_back(std::string("break_lines=") + (settings.break_lines ? "1" : "0"));
   lines.push_back(std::string("profanity_filter=") + (settings.profanity_filter ? "1" : "0"));
   lines.push_back(std::string("lower_case=") + (settings.lower_case ? "1" : "0"));
+  lines.push_back(std::string("auto_check_updates=") + (settings.auto_check_updates ? "1" : "0"));
   std::ofstream out(path, std::ios::trunc);
   for (const auto &l : lines) {
     out << l << '\n';
@@ -316,6 +321,9 @@ int run_app(int argc, char **argv) {
   AudioSourceKind audio_source = AudioSourceKind::Desktop;
   ProfanityFilter profanity;
   app_update::UpdateState update_state;
+  if (settings.auto_check_updates) {
+    app_update::start_update_check(update_state, false);
+  }
 
   auto models = model_manager.models();
   std::optional<std::filesystem::path> active_model;
@@ -460,15 +468,30 @@ int run_app(int argc, char **argv) {
         ImGui::EndMenu();
       }
       if (ImGui::BeginMenu("Settings")) {
-        if (ImGui::MenuItem("Check for Update...")) {
-          app_update::start_update_check(update_state);
+        ImGui::TextDisabled("System");
+        bool auto_update_menu = settings.auto_check_updates;
+        if (ImGui::MenuItem("Automatically Check for Updates", nullptr, auto_update_menu)) {
+          settings.auto_check_updates = !auto_update_menu;
+          save_settings(settings_path, settings);
+          if (settings.auto_check_updates) {
+            app_update::start_update_check(update_state, false);
+          }
         }
+        if (ImGui::MenuItem("Check for Updates now...")) {
+          app_update::start_update_check(update_state, true);
+        }
+        ImGui::Separator();
+
+        ImGui::TextDisabled("Windows");
         bool atop = settings.always_on_top;
         if (ImGui::MenuItem("Always On Top", nullptr, atop)) {
           settings.always_on_top = !atop;
           glfwSetWindowAttrib(window, GLFW_FLOATING, settings.always_on_top ? GLFW_TRUE : GLFW_FALSE);
           save_settings(settings_path, settings);
         }
+        ImGui::Separator();
+
+        ImGui::TextDisabled("Captions");
         bool auto_scroll_menu = auto_scroll_enabled;
         if (ImGui::MenuItem("Auto Scroll", nullptr, auto_scroll_menu)) {
           auto_scroll_enabled = !auto_scroll_menu;
@@ -486,12 +509,6 @@ int run_app(int argc, char **argv) {
           settings.lower_case = lower_case_enabled;
           save_settings(settings_path, settings);
         }
-        bool profanity_menu = profanity_filter_enabled;
-        if (ImGui::MenuItem("Profanity Filter", nullptr, profanity_menu)) {
-          profanity_filter_enabled = !profanity_menu;
-          settings.profanity_filter = profanity_filter_enabled;
-          save_settings(settings_path, settings);
-        }
         if (ImGui::BeginMenu("Text Size")) {
           const struct { const char *label; float px; } sizes[] = {
               {"Normal", 26.0f},
@@ -507,6 +524,15 @@ int run_app(int argc, char **argv) {
             }
           }
           ImGui::EndMenu();
+        }
+        ImGui::Separator();
+
+        ImGui::TextDisabled("Extras");
+        bool profanity_menu = profanity_filter_enabled;
+        if (ImGui::MenuItem("Profanity Filter", nullptr, profanity_menu)) {
+          profanity_filter_enabled = !profanity_menu;
+          settings.profanity_filter = profanity_filter_enabled;
+          save_settings(settings_path, settings);
         }
         ImGui::EndMenu();
       }
@@ -550,6 +576,10 @@ int run_app(int argc, char **argv) {
         int cmp = app_update::compare_versions(kAppVersionTag, snapshot.latest_tag);
         if (cmp < 0) {
           ImGui::TextWrapped("%s is available (current %s). Update now?", snapshot.latest_tag.c_str(), kAppVersionTag);
+#if defined(__linux__)
+          ImGui::Spacing();
+          ImGui::TextWrapped("If you installed this app through a package manager, please update it there to get the latest version.");
+#endif
           if (ImGui::Button("Yes")) {
             app_update::open_url(snapshot.latest_url);
             ImGui::CloseCurrentPopup();

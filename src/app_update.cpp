@@ -136,17 +136,19 @@ bool open_url(const std::string &url) {
 #endif
 }
 
-void start_update_check(UpdateState &state) {
+void start_update_check(UpdateState &state, bool show_modal) {
   {
     std::lock_guard<std::mutex> lock(state.mutex);
     if (state.checking) {
-      state.show_modal = true;
+      if (show_modal) {
+        state.show_modal = true;
+      }
       return;
     }
     if (state.worker.joinable()) {
       state.worker.join();
     }
-    state.show_modal = true;
+    state.show_modal = show_modal;
     state.checking = true;
     state.has_result = false;
     state.result = UpdateResult{};

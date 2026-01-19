@@ -22,7 +22,7 @@ struct UpdateState {
   std::mutex mutex;
 };
 
-void start_update_check(UpdateState &state);
+void start_update_check(UpdateState &state, bool show_modal);
 void finalize_update_thread(UpdateState &state);
 int compare_versions(const std::string &a, const std::string &b);
 bool open_url(const std::string &url);
