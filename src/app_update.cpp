@@ -69,12 +69,14 @@ UpdateResult fetch_latest_release() {
   std::string api = std::string("https://api.github.com/repos/") + kGithubRepo + "/releases/latest";
   auto res = run_command(std::string("curl -fsSL ") + api);
   if (res.exit_code != 0 || res.output.empty()) {
+    std::fprintf(stderr, "[error] Update check failed: unable to reach GitHub releases (network/offline)\n");
     r.error = "Unable to reach GitHub releases.";
     return r;
   }
   r.latest_tag = extract_json_field(res.output, "\"tag_name\"");
   r.latest_url = extract_json_field(res.output, "\"html_url\"");
   if (r.latest_tag.empty() || r.latest_url.empty()) {
+    std::fprintf(stderr, "[error] Update check failed: unexpected release response (parse)\n");
     r.error = "Unable to parse release response.";
     return r;
   }

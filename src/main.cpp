@@ -9,6 +9,13 @@
 #include <vector>
 #include <fstream>
 #include <cctype>
+#include <cfloat>
+#include <cmath>
+#include <map>
+#include <future>
+#include <chrono>
+#include <thread>
+#include <atomic>
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
@@ -73,8 +80,11 @@ struct AppSettings {
   bool auto_scroll = true;
   bool break_lines = true;
   bool profanity_filter = false;
-  bool lower_case = true;
-  bool auto_check_updates = true;
+  bool lower_case = false;
+  bool auto_check_updates = false;
+  bool auto_update_models = false;
+  int window_width = 1280;
+  int window_height = 720;
 };
 
 std::string detect_language_from_model(const std::filesystem::path &model_path) {
@@ -118,6 +128,45 @@ std::string apply_lower_case(std::string_view text) {
   return out;
 }
 
+std::string format_size(std::uint64_t bytes) {
+  const char *units[] = {"B", "KB", "MB", "GB"};
+  double value = static_cast<double>(bytes);
+  int idx = 0;
+  while (value >= 1024.0 && idx < 3) {
+    value /= 1024.0;
+    ++idx;
+  }
+  char buf[32];
+  std::snprintf(buf, sizeof(buf), "%.1f %s", value, units[idx]);
+  return std::string(buf);
+}
+
+struct ManagedModelFetchResult {
+  bool ok = false;
+  std::string error;
+  std::vector<ModelManager::RemoteModel> manifest;
+};
+
+struct ManagedModelDownloadResult {
+  bool ok = false;
+  std::string error;
+  std::filesystem::path path;
+  ModelManager::RemoteModel remote;
+};
+
+struct ManagedModelUiState {
+  bool open_modal = false;
+  bool fetch_inflight = false;
+  bool download_inflight = false;
+  std::string fetch_error;
+  std::string download_error;
+  std::vector<ModelManager::RemoteModel> manifest;
+  std::map<std::string, ModelManager::InstalledModel> installed;
+  std::optional<std::size_t> selected;
+  std::future<ManagedModelFetchResult> fetch_future;
+  std::future<ManagedModelDownloadResult> download_future;
+};
+
 std::filesystem::path configure_imgui_ini(ImGuiIO &io, const std::filesystem::path &exe_path) {
   static std::string ini_path;
   auto window_dir = user_config_dir(exe_path);
@@ -159,6 +208,18 @@ void load_settings(const std::filesystem::path &path, AppSettings &settings) {
       settings.lower_case = line.find("=1") != std::string::npos;
     } else if (line.rfind("auto_check_updates=", 0) == 0) {
       settings.auto_check_updates = line.find("=1") != std::string::npos;
+    } else if (line.rfind("auto_update_models=", 0) == 0) {
+      settings.auto_update_models = line.find("=1") != std::string::npos;
+    } else if (line.rfind("window_width=", 0) == 0) {
+      try {
+        settings.window_width = std::stoi(line.substr(std::string("window_width=").size()));
+      } catch (...) {
+      }
+    } else if (line.rfind("window_height=", 0) == 0) {
+      try {
+        settings.window_height = std::stoi(line.substr(std::string("window_height=").size()));
+      } catch (...) {
+      }
     }
   }
 }
@@ -172,7 +233,7 @@ void save_settings(const std::filesystem::path &path, const AppSettings &setting
       if (line.rfind("always_on_top=", 0) == 0 || line.rfind("font_size=", 0) == 0 ||
           line.rfind("auto_scroll=", 0) == 0 || line.rfind("break_lines=", 0) == 0 ||
           line.rfind("profanity_filter=", 0) == 0 || line.rfind("lower_case=", 0) == 0 ||
-          line.rfind("auto_check_updates=", 0) == 0) {
+          line.rfind("auto_check_updates=", 0) == 0 || line.rfind("auto_update_models=", 0) == 0) {
         continue;
       }
       lines.push_back(line);
@@ -185,6 +246,9 @@ void save_settings(const std::filesystem::path &path, const AppSettings &setting
   lines.push_back(std::string("profanity_filter=") + (settings.profanity_filter ? "1" : "0"));
   lines.push_back(std::string("lower_case=") + (settings.lower_case ? "1" : "0"));
   lines.push_back(std::string("auto_check_updates=") + (settings.auto_check_updates ? "1" : "0"));
+  lines.push_back(std::string("auto_update_models=") + (settings.auto_update_models ? "1" : "0"));
+  lines.push_back(std::string("window_width=") + std::to_string(settings.window_width));
+  lines.push_back(std::string("window_height=") + std::to_string(settings.window_height));
   std::ofstream out(path, std::ios::trunc);
   for (const auto &l : lines) {
     out << l << '\n';
@@ -269,7 +333,8 @@ int run_app(int argc, char **argv) {
   glfwWindowHintString(GLFW_X11_INSTANCE_NAME, "CoolLiveCaptions");
 #endif
 
-  GLFWwindow *window = glfwCreateWindow(1280, 720, "Cool Live Captions", nullptr, nullptr);
+  std::string window_title = std::string("Cool Live Captions ") + kAppVersionTag;
+  GLFWwindow *window = glfwCreateWindow(1280, 720, window_title.c_str(), nullptr, nullptr);
   if (!window) {
     glfwTerminate();
     return 1;
@@ -306,11 +371,18 @@ int run_app(int argc, char **argv) {
   auto settings_path = settings_file(window_dir);
   AppSettings settings{};
   load_settings(settings_path, settings);
+  if (settings.window_width > 0 && settings.window_height > 0) {
+    glfwSetWindowSize(window, settings.window_width, settings.window_height);
+  }
   ModelManager model_manager(exe_path);
   model_manager.refresh();
   configure_fonts(exe_path, settings.font_size_px);
   configure_style();
   glfwSetWindowAttrib(window, GLFW_FLOATING, settings.always_on_top ? GLFW_TRUE : GLFW_FALSE);
+
+  ManagedModelUiState managed_ui;
+  std::atomic<bool> model_update_refresh{false};
+  std::thread model_update_thread;
 
   auto profanity_dir = exe_path / "profanity";
 
@@ -322,7 +394,38 @@ int run_app(int argc, char **argv) {
   ProfanityFilter profanity;
   app_update::UpdateState update_state;
   if (settings.auto_check_updates) {
+    log_info("Automatic update check at startup");
     app_update::start_update_check(update_state, false);
+  }
+
+  if (settings.auto_update_models) {
+    model_update_thread = std::thread([&model_manager, &model_update_refresh]() {
+      std::vector<ModelManager::RemoteModel> manifest;
+      std::string error;
+      if (!model_manager.fetch_manifest(manifest, error)) {
+        log_error("Model auto-update manifest failed: " + error);
+        return;
+      }
+      auto installed = model_manager.installed_models();
+      for (const auto &remote : manifest) {
+        auto it = installed.find(remote.id);
+        if (it == installed.end()) {
+          continue;
+        }
+        if (it->second.version == remote.version) {
+          continue;
+        }
+        std::string dl_error;
+        std::filesystem::path path;
+        if (model_manager.download_model(remote, dl_error, &path)) {
+          log_info("Updated model: " + remote.id + " -> " + remote.version);
+          model_manager.record_install(remote, path);
+        } else {
+          log_error("Model update failed for " + remote.id + ": " + dl_error);
+        }
+      }
+      model_update_refresh = true;
+    });
   }
 
   auto models = model_manager.models();
@@ -368,9 +471,43 @@ int run_app(int argc, char **argv) {
   bool auto_scroll_enabled = settings.auto_scroll;
   bool profanity_filter_enabled = settings.profanity_filter;
   bool lower_case_enabled = settings.lower_case;
+  bool first_run_modal = models.empty();
+
+  auto start_manifest_fetch = [&]() {
+    if (managed_ui.fetch_inflight) {
+      return;
+    }
+    managed_ui.fetch_error.clear();
+    managed_ui.download_error.clear();
+    managed_ui.manifest.clear();
+    managed_ui.selected.reset();
+    managed_ui.fetch_inflight = true;
+    managed_ui.fetch_future = std::async(std::launch::async, [&model_manager]() {
+      ManagedModelFetchResult result;
+      result.ok = model_manager.fetch_manifest(result.manifest, result.error);
+      return result;
+    });
+  };
+
+  auto start_download = [&](const ModelManager::RemoteModel &remote) {
+    if (managed_ui.download_inflight) {
+      return;
+    }
+    managed_ui.download_error.clear();
+    managed_ui.download_inflight = true;
+    managed_ui.download_future = std::async(std::launch::async, [&model_manager, remote]() {
+      ManagedModelDownloadResult result;
+      result.remote = remote;
+      result.ok = model_manager.download_model(remote, result.error, &result.path);
+      return result;
+    });
+  };
 
   while (!glfwWindowShouldClose(window)) {
     app_update::finalize_update_thread(update_state);
+    if (model_update_refresh.exchange(false)) {
+      refresh_models = true;
+    }
     glfwPollEvents();
 
     if (refresh_models) {
@@ -422,9 +559,55 @@ int run_app(int argc, char **argv) {
       partial_filtered = profanity_filter_enabled ? profanity.filter(normalized_partial) : normalized_partial;
     }
 
+    if (managed_ui.fetch_inflight && managed_ui.fetch_future.valid() &&
+        managed_ui.fetch_future.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+      auto result = managed_ui.fetch_future.get();
+      managed_ui.fetch_inflight = false;
+      managed_ui.fetch_error = result.ok ? std::string() : result.error;
+      if (result.ok) {
+        managed_ui.manifest = std::move(result.manifest);
+        managed_ui.installed = model_manager.installed_models();
+        if (!managed_ui.manifest.empty()) {
+          managed_ui.selected = 0;
+        }
+      }
+    }
+
+    if (managed_ui.download_inflight && managed_ui.download_future.valid() &&
+        managed_ui.download_future.wait_for(std::chrono::seconds(0)) == std::future_status::ready) {
+      auto result = managed_ui.download_future.get();
+      managed_ui.download_inflight = false;
+      managed_ui.download_error = result.ok ? std::string() : result.error;
+      if (result.ok) {
+        model_manager.record_install(result.remote, result.path);
+        managed_ui.installed = model_manager.installed_models();
+        refresh_models = true;
+      }
+    }
+
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
+
+    if (first_run_modal) {
+      ImGui::OpenPopup("Download a Caption Model");
+    }
+
+    if (ImGui::BeginPopupModal("Download a Caption Model", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+      ImGui::TextWrapped("No models found. Would you like to download a caption model now?");
+      if (ImGui::Button("Yes")) {
+        managed_ui.open_modal = true;
+        start_manifest_fetch();
+        first_run_modal = false;
+        ImGui::CloseCurrentPopup();
+      }
+      ImGui::SameLine();
+      if (ImGui::Button("No")) {
+        first_run_modal = false;
+        ImGui::CloseCurrentPopup();
+      }
+      ImGui::EndPopup();
+    }
 
     if (ImGui::BeginMainMenuBar()) {
       if (ImGui::BeginMenu("Audio Sources")) {
@@ -441,6 +624,11 @@ int run_app(int argc, char **argv) {
         ImGui::EndMenu();
       }
       if (ImGui::BeginMenu("Caption Models")) {
+        if (ImGui::MenuItem("Download Models...")) {
+          managed_ui.open_modal = true;
+          managed_ui.installed = model_manager.installed_models();
+          start_manifest_fetch();
+        }
         if (ImGui::MenuItem("Open Models Folder")) {
           model_manager.open_models_folder();
         }
@@ -479,6 +667,43 @@ int run_app(int argc, char **argv) {
         }
         if (ImGui::MenuItem("Check for Updates now...")) {
           app_update::start_update_check(update_state, true);
+        }
+        bool auto_model_update_menu = settings.auto_update_models;
+        if (ImGui::MenuItem("Auto-update Managed Models", nullptr, auto_model_update_menu)) {
+          settings.auto_update_models = !auto_model_update_menu;
+          save_settings(settings_path, settings);
+          if (settings.auto_update_models) {
+            if (model_update_thread.joinable()) {
+              model_update_thread.join();
+            }
+            model_update_thread = std::thread([&model_manager, &model_update_refresh]() {
+              std::vector<ModelManager::RemoteModel> manifest;
+              std::string error;
+              if (!model_manager.fetch_manifest(manifest, error)) {
+                log_error("Model auto-update manifest failed: " + error);
+                return;
+              }
+              auto installed = model_manager.installed_models();
+              for (const auto &remote : manifest) {
+                auto it = installed.find(remote.id);
+                if (it == installed.end()) {
+                  continue;
+                }
+                if (it->second.version == remote.version) {
+                  continue;
+                }
+                std::string dl_error;
+                std::filesystem::path path;
+                if (model_manager.download_model(remote, dl_error, &path)) {
+                  log_info("Updated model: " + remote.id + " -> " + remote.version);
+                  model_manager.record_install(remote, path);
+                } else {
+                  log_error("Model update failed for " + remote.id + ": " + dl_error);
+                }
+              }
+              model_update_refresh = true;
+            });
+          }
         }
         ImGui::Separator();
 
@@ -537,6 +762,111 @@ int run_app(int argc, char **argv) {
         ImGui::EndMenu();
       }
       ImGui::EndMainMenuBar();
+    }
+
+    if (managed_ui.open_modal) {
+      ImGui::OpenPopup("Download Caption Models");
+      managed_ui.open_modal = false;
+    }
+
+    if (ImGui::BeginPopupModal("Download Caption Models", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove)) {
+      ImVec2 modal_size = ImVec2(io.DisplaySize.x * 0.8f, io.DisplaySize.y * 0.8f);
+      ImGui::SetWindowSize(modal_size);
+      ImGui::SetWindowPos(ImVec2(io.DisplaySize.x * 0.1f, io.DisplaySize.y * 0.1f));
+
+      ImGui::TextUnformatted("Available models");
+
+      ImGui::BeginChild("models_list", ImVec2(-FLT_MIN, io.DisplaySize.y * 0.45f), true);
+      if (managed_ui.fetch_inflight) {
+        ImGui::TextUnformatted("Fetching manifest...");
+      } else if (!managed_ui.fetch_error.empty()) {
+        ImGui::TextDisabled("Manifest not available.");
+      } else if (managed_ui.manifest.empty()) {
+        ImGui::TextDisabled("No managed models available.");
+      } else {
+        for (std::size_t i = 0; i < managed_ui.manifest.size(); ++i) {
+          const auto &remote = managed_ui.manifest[i];
+          auto it = managed_ui.installed.find(remote.id);
+          bool selected = managed_ui.selected && *managed_ui.selected == i;
+          std::string label = remote.filename + " [" + remote.language + "] v" + remote.version;
+          if (ImGui::Selectable(label.c_str(), selected)) {
+            managed_ui.selected = i;
+            managed_ui.download_error.clear();
+          }
+          std::string status;
+          if (it == managed_ui.installed.end()) {
+            status = "Not installed";
+          } else if (it->second.version == remote.version) {
+            status = "Installed";
+          } else {
+            status = "Update available (current " + it->second.version + ")";
+          }
+          ImGui::SameLine();
+          ImGui::TextDisabled("%s", status.c_str());
+        }
+      }
+      ImGui::EndChild();
+
+      ImGui::Spacing();
+
+      if (!managed_ui.fetch_error.empty()) {
+        ImGui::TextWrapped("Failed to fetch manifest: %s", managed_ui.fetch_error.c_str());
+        ImGui::SameLine();
+        if (ImGui::Button("Retry")) {
+          start_manifest_fetch();
+        }
+      } else if (!managed_ui.download_error.empty()) {
+        ImGui::TextWrapped("%s", managed_ui.download_error.c_str());
+        ImGui::SameLine();
+        if (ImGui::Button("Retry")) {
+          if (managed_ui.selected && *managed_ui.selected < managed_ui.manifest.size()) {
+            start_download(managed_ui.manifest[*managed_ui.selected]);
+          }
+        }
+      }
+
+      ImGui::Spacing();
+      ImGui::Separator();
+
+      if (managed_ui.selected && *managed_ui.selected < managed_ui.manifest.size()) {
+        const auto &remote = managed_ui.manifest[*managed_ui.selected];
+        auto it = managed_ui.installed.find(remote.id);
+        ImGui::Text("Language: %s", remote.language.c_str());
+        ImGui::Text("Version: %s", remote.version.c_str());
+        ImGui::Text("Size: %s", format_size(remote.size_bytes).c_str());
+        if (it != managed_ui.installed.end()) {
+          ImGui::Text("Installed version: %s", it->second.version.c_str());
+        }
+      }
+
+      ImGui::Dummy(ImVec2(0.0f, 4.0f));
+      {
+        float phase = managed_ui.download_inflight ? (0.5f + 0.5f * std::sin(static_cast<float>(ImGui::GetTime() * 2.0))) : 0.0f;
+        const char *label = managed_ui.download_inflight ? "Downloading..." : "Idle";
+        ImGui::ProgressBar(phase, ImVec2(-FLT_MIN, 0), label);
+      }
+
+      ImGui::Dummy(ImVec2(0.0f, 6.0f));
+      ImGui::Separator();
+      ImGui::Dummy(ImVec2(0.0f, 4.0f));
+
+      ImGui::SetCursorPosX((ImGui::GetWindowContentRegionMax().x - ImGui::GetWindowContentRegionMin().x) * 0.5f - 110.0f);
+      ImGui::BeginGroup();
+      bool disable_download = !managed_ui.selected || managed_ui.download_inflight || !managed_ui.fetch_error.empty();
+      ImGui::BeginDisabled(disable_download);
+      if (ImGui::Button("Download", ImVec2(110, 0))) {
+        if (managed_ui.selected && *managed_ui.selected < managed_ui.manifest.size()) {
+          start_download(managed_ui.manifest[*managed_ui.selected]);
+        }
+      }
+      ImGui::EndDisabled();
+      ImGui::SameLine();
+      if (ImGui::Button("OK", ImVec2(80, 0))) {
+        ImGui::CloseCurrentPopup();
+      }
+      ImGui::EndGroup();
+
+      ImGui::EndPopup();
     }
 
     bool open_update_popup = false;
@@ -672,7 +1002,17 @@ int run_app(int argc, char **argv) {
 
   audio.stop();
   engine.stop();
+  int saved_w = 0;
+  int saved_h = 0;
+  glfwGetWindowSize(window, &saved_w, &saved_h);
+  if (saved_w > 0 && saved_h > 0) {
+    settings.window_width = saved_w;
+    settings.window_height = saved_h;
+  }
   app_update::finalize_update_thread(update_state);
+  if (model_update_thread.joinable()) {
+    model_update_thread.join();
+  }
 
   ImGui_ImplOpenGL3_Shutdown();
   ImGui_ImplGlfw_Shutdown();

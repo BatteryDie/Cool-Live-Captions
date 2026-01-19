@@ -17,16 +17,21 @@ Windows and Linux are currently supported. macOS is coming soon.
 
 ## Feature
 - Dear ImGui GUI framework
-- Desktop Audio and Microphone Capture Support
+- On-device speech-to-text using:
+  - april-asr
+  - ONNX Runtime/Format
+- Capture Audio from:
+  - Loopback (system audio)
+  - Microphone
+  - Specific application (depending on OS capabilities)
 - Autosave transcripts in text file
 - Profanity filter
+- Model Manager
 
 ## Coming Soon
 - More language models
-- Model Manager + Automatic update
 - Capture from specific applications (depending on OS capabilities)
 - macOS support
-- Application Updater (Windows and macOS only)
 - Flathub support (Linux only)
 
 ## Screenshot

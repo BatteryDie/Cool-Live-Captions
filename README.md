@@ -1,11 +1,21 @@
 ## Cool Live Captions
-
 A free and open source live caption desktop application that converts audio from your microphone or system audio to text in real-time. The speech recognition is powered by april-asr library with ONNX format. All processed on-device using your CPU.
 
+> Disclaimer: Cool Live Captions is experimental and captions may not be 100% accurate.
+
 ### OS Audio API
-- Windows: WASAPI (loopback + microphone)
-- Linux: PulseAudio (loopback + microphone), PipeWire (loopback + microphone)
-- macOS: Need research
+
+Here's what we are using for audio capture on each OS offered:
+
+| OS      | API            | Loopback | Microphone | Capture Specific App |
+|---------|----------------|:--------:|:----------:|:--------------------:|
+| Windows | WASAPI         | ✅       | ✅         | ✅                   |
+| Linux   | PipeWire       | ✅       | ✅         | ✅                   |
+| macOS   | Core Audio     | ❌       | ✅         | ✅                   |
+
+> For Linux, we are currently using PipeWire over PulseAudio on Linux due to better support for loopback capture and specific app capture.
+
+> macOS 14.2 introduced a Core Audio API for creating a “Process Tap” that can capture audio from a specific app, a subset of apps, or an output device, and attach it to a private or public Aggregate Device. See [AudioHardwareCreateProcessTap](https://developer.apple.com/documentation/coreaudio/4160724-audiohardwarecreateprocesstap?language=objc). Third-party virtual devices like [BlackHole](https://github.com/ExistentialAudio/BlackHole) remain an alternative to Loopback.
 
 ### Location for Models, Transcripts, and Settings
 - Models are loaded from your per-user models folder:
