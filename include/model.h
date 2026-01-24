@@ -9,7 +9,7 @@
 
 class ModelManager {
 public:
-  explicit ModelManager(std::filesystem::path base_dir);
+  explicit ModelManager(std::filesystem::path base_dir, bool use_dev_manifest = false);
 
   void refresh();
   const std::vector<std::filesystem::path> &models() const { return models_; }
@@ -25,6 +25,11 @@ public:
     std::string url;
     std::string filename;
     std::uint64_t size_bytes = 0;
+    // Optional additional metadata from manifest
+    std::string name;
+    std::string author;
+    std::string description;
+    std::string url_website;
   };
 
   struct InstalledModel {
@@ -34,6 +39,7 @@ public:
 
   bool fetch_manifest(std::vector<RemoteModel> &out, std::string &error) const;
   bool download_model(const RemoteModel &remote, std::string &error, std::filesystem::path *out_path = nullptr) const;
+  bool remove_installed(const std::string &id, std::string &error);
 
   std::map<std::string, InstalledModel> installed_models() const {
     std::lock_guard<std::mutex> lock(installed_mutex_);
@@ -52,6 +58,7 @@ private:
   std::vector<std::filesystem::path> models_;
   std::filesystem::path base_dir_;
   std::filesystem::path user_dir_;
+  bool use_dev_manifest_ = false;
   std::map<std::string, InstalledModel> installed_;
   mutable std::mutex installed_mutex_;
 };

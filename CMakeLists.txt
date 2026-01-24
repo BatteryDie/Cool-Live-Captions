@@ -102,6 +102,21 @@ FetchContent_Declare(imgui
 )
 FetchContent_MakeAvailable(imgui)
 
+# libcurl for HTTP downloads (no terminal popups)
+set(BUILD_CURL_EXE OFF CACHE BOOL "" FORCE)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+set(CURL_DISABLE_TESTS ON CACHE BOOL "" FORCE)
+set(HTTP_ONLY ON CACHE BOOL "" FORCE)
+set(CURL_USE_OPENSSL OFF CACHE BOOL "" FORCE)
+set(CURL_USE_SCHANNEL ON CACHE BOOL "" FORCE)
+set(CURL_CA_BUNDLE "none" CACHE STRING "" FORCE)
+set(CURL_CA_PATH "none" CACHE STRING "" FORCE)
+FetchContent_Declare(curl
+  GIT_REPOSITORY https://github.com/curl/curl.git
+  GIT_TAG curl-8_11_1
+)
+FetchContent_MakeAvailable(curl)
+
 add_library(imgui_obj
   ${imgui_SOURCE_DIR}/imgui.cpp
   ${imgui_SOURCE_DIR}/imgui_demo.cpp
@@ -194,7 +209,7 @@ target_compile_definitions(coollivecaptions PRIVATE
   GITHUB_REPO="BatteryDie/Cool-Live-Captions"
 )
 
-target_link_libraries(coollivecaptions PRIVATE imgui::imgui glfw glad)
+target_link_libraries(coollivecaptions PRIVATE imgui::imgui glfw glad CURL::libcurl)
 if(PIPEWIRE_FOUND)
   target_link_libraries(coollivecaptions PRIVATE PkgConfig::PIPEWIRE)
   target_compile_definitions(coollivecaptions PRIVATE HAVE_PIPEWIRE)

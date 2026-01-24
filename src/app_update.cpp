@@ -9,6 +9,7 @@
 #include <string_view>
 #include <utility>
 #include <vector>
+#include <curl/curl.h>
 
 #if defined(_WIN32)
 #include <windows.h>
@@ -20,32 +21,36 @@ namespace {
 
 constexpr const char *kGithubRepo = GITHUB_REPO;
 
-struct CommandResult {
-  int exit_code = -1;
-  std::string output;
-};
+// libcurl callback to write data to a string
+static size_t write_callback_string(void *contents, size_t size, size_t nmemb, void *userp) {
+  size_t total = size * nmemb;
+  auto *str = static_cast<std::string *>(userp);
+  str->append(static_cast<char *>(contents), total);
+  return total;
+}
 
-CommandResult run_command(const std::string &cmd) {
-  CommandResult res{};
-#if defined(_WIN32)
-  FILE *pipe = _popen(cmd.c_str(), "r");
-#else
-  FILE *pipe = popen(cmd.c_str(), "r");
-#endif
-  if (!pipe) {
-    res.exit_code = -1;
-    return res;
+// Download URL to string using libcurl (no terminal popup)
+bool download_to_string(const std::string &url, std::string &out, std::string &error) {
+  CURL *curl = curl_easy_init();
+  if (!curl) {
+    error = "Failed to initialize libcurl.";
+    return false;
   }
-  std::array<char, 4096> buffer{};
-  while (fgets(buffer.data(), static_cast<int>(buffer.size()), pipe)) {
-    res.output.append(buffer.data());
+  out.clear();
+  curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
+  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_callback_string);
+  curl_easy_setopt(curl, CURLOPT_WRITEDATA, &out);
+  curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+  curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1L);
+  curl_easy_setopt(curl, CURLOPT_TIMEOUT, 30L);
+  curl_easy_setopt(curl, CURLOPT_USERAGENT, "CoolLiveCaptions/1.0");
+  CURLcode res = curl_easy_perform(curl);
+  curl_easy_cleanup(curl);
+  if (res != CURLE_OK) {
+    error = std::string("Download failed: ") + curl_easy_strerror(res);
+    return false;
   }
-#if defined(_WIN32)
-  res.exit_code = _pclose(pipe);
-#else
-  res.exit_code = pclose(pipe);
-#endif
-  return res;
+  return true;
 }
 
 std::string extract_json_field(const std::string &json, std::string_view key) {
@@ -67,14 +72,15 @@ std::string extract_json_field(const std::string &json, std::string_view key) {
 UpdateResult fetch_latest_release() {
   UpdateResult r{};
   std::string api = std::string("https://api.github.com/repos/") + kGithubRepo + "/releases/latest";
-  auto res = run_command(std::string("curl -fsSL ") + api);
-  if (res.exit_code != 0 || res.output.empty()) {
+  std::string output;
+  std::string error;
+  if (!download_to_string(api, output, error) || output.empty()) {
     std::fprintf(stderr, "[error] Update check failed: unable to reach GitHub releases (network/offline)\n");
-    r.error = "Unable to reach GitHub releases.";
+    r.error = error.empty() ? "Unable to reach GitHub releases." : error;
     return r;
   }
-  r.latest_tag = extract_json_field(res.output, "\"tag_name\"");
-  r.latest_url = extract_json_field(res.output, "\"html_url\"");
+  r.latest_tag = extract_json_field(output, "\"tag_name\"");
+  r.latest_url = extract_json_field(output, "\"html_url\"");
   if (r.latest_tag.empty() || r.latest_url.empty()) {
     std::fprintf(stderr, "[error] Update check failed: unexpected release response (parse)\n");
     r.error = "Unable to parse release response.";
@@ -130,11 +136,9 @@ bool open_url(const std::string &url) {
   auto wurl = std::wstring(url.begin(), url.end());
   return reinterpret_cast<INT_PTR>(ShellExecuteW(nullptr, L"open", wurl.c_str(), nullptr, nullptr, SW_SHOWNORMAL)) > 32;
 #elif defined(__APPLE__)
-  auto res = run_command(std::string("open \"") + url + "\"");
-  return res.exit_code == 0;
+  return std::system((std::string("open \"") + url + "\"").c_str()) == 0;
 #else
-  auto res = run_command(std::string("xdg-open \"") + url + "\" 2>/dev/null");
-  return res.exit_code == 0;
+  return std::system((std::string("xdg-open \"") + url + "\" 2>/dev/null").c_str()) == 0;
 #endif
 }
 
