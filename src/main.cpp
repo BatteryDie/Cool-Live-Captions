@@ -80,9 +80,9 @@ struct AppSettings {
   bool auto_scroll = true;
   bool break_lines = true;
   bool profanity_filter = false;
-  bool lower_case = false;
-  bool auto_check_updates = false;
-  bool auto_update_models = false;
+  bool lower_case = true;
+  bool auto_check_updates = true;
+  bool auto_update_models = true;
   int window_width = 1280;
   int window_height = 720;
 };
