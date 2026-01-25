@@ -417,7 +417,6 @@ int run_app(int argc, char **argv) {
   CaptionView caption;
   TranscriptionWriter writer;
   AprilAsrEngine engine;
-  engine.set_use_gpu(use_gpu);
   AudioBackend audio;
   AudioSourceKind audio_source = AudioSourceKind::Desktop;
   ProfanityFilter profanity;
