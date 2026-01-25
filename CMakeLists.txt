@@ -107,16 +107,18 @@ set(BUILD_CURL_EXE OFF CACHE BOOL "" FORCE)
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 set(CURL_DISABLE_TESTS ON CACHE BOOL "" FORCE)
 set(HTTP_ONLY ON CACHE BOOL "" FORCE)
-set(CURL_USE_OPENSSL OFF CACHE BOOL "" FORCE)
-# Enable Schannel only on Windows targets. On non-Windows systems curl's
-# build should not enable Schannel/SSPI (it pulls in Windows-only headers).
+
+# On Windows use Schannel; on Unix-like systems enable OpenSSL so HTTPS works.
 if(WIN32)
+  set(CURL_USE_OPENSSL OFF CACHE BOOL "" FORCE)
   set(CURL_USE_SCHANNEL ON CACHE BOOL "" FORCE)
+  # Avoid using system certificate bundles on Windows build here.
+  set(CURL_CA_BUNDLE "none" CACHE STRING "" FORCE)
+  set(CURL_CA_PATH "none" CACHE STRING "" FORCE)
 else()
+  set(CURL_USE_OPENSSL ON CACHE BOOL "" FORCE)
   set(CURL_USE_SCHANNEL OFF CACHE BOOL "" FORCE)
 endif()
-set(CURL_CA_BUNDLE "none" CACHE STRING "" FORCE)
-set(CURL_CA_PATH "none" CACHE STRING "" FORCE)
 FetchContent_Declare(curl
   GIT_REPOSITORY https://github.com/curl/curl.git
   GIT_TAG curl-8_11_1
