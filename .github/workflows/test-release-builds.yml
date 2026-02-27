@@ -1,0 +1,522 @@
+name: Test Release Builds
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  windows-release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set release version
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $version = $tag.TrimStart('v')
+          "RELEASE_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Configure CMake (MSVC Release)
+        shell: pwsh
+        run: |
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_RUNTIME_OUTPUT_DIRECTORY="${{ github.workspace }}/build/bin" -DCMAKE_LIBRARY_OUTPUT_DIRECTORY="${{ github.workspace }}/build/bin" -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY="${{ github.workspace }}/build/lib" -DCMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE="${{ github.workspace }}/build/bin" -DCMAKE_LIBRARY_OUTPUT_DIRECTORY_RELEASE="${{ github.workspace }}/build/bin" -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE="${{ github.workspace }}/build/lib"
+
+      - name: Build (MSVC)
+        shell: pwsh
+        run: cmake --build build --config Release -- /m
+
+
+      # installer build will run after the installer script is written
+
+      - name: Write installer script
+        shell: pwsh
+        run: |
+          Set-Location $env:GITHUB_WORKSPACE
+          New-Item -ItemType Directory -Path deploy -Force | Out-Null
+          $script = @'
+          ; Inno Setup Script for Cool Live Caption
+          ; Requires Inno Setup 6.0 or later: https://jrsoftware.org/isinfo.php
+          #define AppName "Cool Live Captions"
+          #define AppVersion "${{ env.RELEASE_VERSION }}"
+          #define AppPublisher "Luca Jones"
+          #define AppExeName "coollivecaptions.exe"
+          #define AppDataDirName "CoolLiveCaptions"
+
+          [Setup]
+          AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}}
+          AppName={#AppName}
+          AppVersion={#AppVersion}
+          AppPublisher={#AppPublisher}
+          DefaultDirName={localappdata}\Programs\{#AppName}
+          DefaultGroupName={#AppName}
+          DisableProgramGroupPage=yes
+          PrivilegesRequired=lowest
+          OutputDir=../build/installer_output
+          OutputBaseFilename=CoolLiveCaptionsSetup
+          Compression=lzma
+          SolidCompression=yes
+          WizardStyle=modern dynamic
+          DisableWelcomePage=no
+          UninstallDisplayIcon={app}\{#AppExeName}
+          LicenseFile=..\LICENSE
+
+          [Languages]
+          Name: "english"; MessagesFile: "compiler:Default.isl"
+
+          [Messages]
+          WelcomeLabel2=NOTICE: Cool Live Captions is experimental and captions may not be 100% accurate.%n%nThis will install [name/ver] on your computer. 
+
+          [Tasks]
+          Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Additional icons:"
+
+          [Files]
+          Source: "..\\build\\bin\\{#AppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+          Source: "..\\build\\bin\\*.dll"; DestDir: "{app}"; Flags: ignoreversion
+          Source: "..\\build\\bin\\resources\\profanity\\*"; DestDir: "{app}\\resources\\profanity"; Flags: ignoreversion recursesubdirs createallsubdirs
+          Source: "..\\build\\bin\\resources\\lang\\*"; DestDir: "{app}\\resources\\lang"; Flags: ignoreversion recursesubdirs createallsubdirs
+          Source: "..\\resources\\icon.ico"; DestDir: "{app}"; Flags: ignoreversion; Check: FileExists(ExpandConstant('{#SourcePath}\\..\\resources\\icon.ico'))
+          Source: "..\\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
+          Source: "..\\THIRD-PARTY-LICENSES"; DestDir: "{app}"; Flags: ignoreversion; Check: FileExists(ExpandConstant('{#SourcePath}\\..\\THIRD-PARTY-LICENSES.md'))
+
+          [Icons]
+          Name: "{group}\\{#AppName}"; Filename: "{app}\\{#AppExeName}"
+          ; Models Folder shortcut removed
+          Name: "{autodesktop}\\{#AppName}"; Filename: "{app}\\{#AppExeName}"; Tasks: desktopicon
+
+          [Run]
+          Filename: "{app}\\{#AppExeName}"; Description: "Launch {#AppName}"; Flags: nowait postinstall skipifsilent
+
+          [Code]
+          var
+            RemoveUserDataConfirmed: Boolean;
+
+          procedure InitializeWizard;
+          var
+            ModelsDir: String;
+          begin
+            ModelsDir := ExpandConstant('{localappdata}\\{#AppDataDirName}\\models');
+            if not DirExists(ModelsDir) then
+              CreateDir(ModelsDir);
+          end;
+
+          procedure InitializeUninstallProgressForm;
+          begin
+            RemoveUserDataConfirmed :=
+              SuppressibleMsgBox(
+                'Do you want to remove settings and downloaded models for {#AppName}?',
+                mbConfirmation,
+                MB_YESNO,
+                IDNO
+              ) = IDYES;
+          end;
+
+          procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+          begin
+            if (CurUninstallStep = usPostUninstall) and RemoveUserDataConfirmed then
+            begin
+              DelTree(ExpandConstant('{app}'), True, True, True);
+            end;
+          end;
+          '@
+          # Strip leading indentation so ISPP directives start at column 1
+          $script = $script -replace '(?m)^[ \t]+',''
+          $script | Set-Content -Path deploy/windows-installer.iss -Encoding ASCII -Force
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --no-progress --yes
+
+      - name: Show installer script (debug)
+        shell: pwsh
+        run: |
+          Write-Host '--- deploy/windows-installer.iss ---'
+          if (Test-Path 'deploy/windows-installer.iss') { Get-Content 'deploy/windows-installer.iss' -Raw } else { Write-Host 'missing' }
+
+      - name: Build installer
+        shell: pwsh
+        run: |
+          Set-Location $env:GITHUB_WORKSPACE
+          Write-Host 'Running Inno Setup compiler (iscc)'
+          iscc deploy\windows-installer.iss
+
+      - name: Rename installer to tag
+        shell: pwsh
+        run: |
+          $source = "build/installer_output/coollivecaptionsSetup.exe"
+          $dest = "build/installer_output/cool-live-captions-${{ env.RELEASE_VERSION }}-amd64.exe"
+          if (-not (Test-Path $source)) { throw "Installer not found: $source" }
+          Rename-Item -Path $source -NewName (Split-Path $dest -Leaf) -Force
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cool-live-captions_${{ env.RELEASE_VERSION }}_win_amd64.exe
+          path: build/installer_output/cool-live-captions-${{ env.RELEASE_VERSION }}-amd64.exe
+          if-no-files-found: warn
+          compression-level: 0
+          overwrite: true
+
+
+  linux-release-appimage:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set release version
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          echo "RELEASE_VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            ninja-build \
+            libgl1-mesa-dev libglu1-mesa-dev \
+            libx11-dev libxrandr-dev libxinerama-dev libxi-dev libxcursor-dev \
+            libxkbcommon-dev libwayland-dev wayland-protocols \
+            libpipewire-0.3-dev libspa-0.2-dev
+
+      - name: Configure CMake (Release)
+        run: |
+          cmake -S . -B build-linux-release \
+            -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+
+      - name: Build
+        run: cmake --build build-linux-release --parallel
+
+      - name: Build AppImage
+        env:
+          BUNDLE_AUDIO_LIBS: 1
+        run: |
+          set -euo pipefail
+
+          ROOT_DIR="$PWD"
+          BUILD_DIR="${ROOT_DIR}/build-appimage"
+          APPDIR="${BUILD_DIR}/coollivecaptions.AppDir"
+          APPNAME="Cool Live Caption"
+          BIN_NAME="coollivecaptions"
+          ICON_SRC_PNG="${ROOT_DIR}/resources/icon-appimage.png"
+          DESKTOP_FILE="${APPDIR}/usr/share/applications/${BIN_NAME}.desktop"
+
+          cmake -S "${ROOT_DIR}" -B "${BUILD_DIR}" -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build "${BUILD_DIR}" --target "${BIN_NAME}"
+
+          echo "Build output contents:"
+          ls -la "${BUILD_DIR}/bin"
+
+          rm -rf "${APPDIR}"
+          mkdir -p "${APPDIR}/usr/bin" "${APPDIR}/usr/share/applications" "${APPDIR}/usr/share/icons/hicolor/256x256/apps"
+
+          cp "${BUILD_DIR}/bin/${BIN_NAME}" "${APPDIR}/usr/bin/"
+
+          # Bundle runtime siblings that our CMake copies next to the binary (onnxruntime, april-asr .so, profanity lists).
+          if compgen -G "${BUILD_DIR}/bin/*.so" > /dev/null; then
+            cp "${BUILD_DIR}/bin"/*.so "${APPDIR}/usr/bin/"
+          fi
+          # Bundle profanity lists (prefer build output resources if available)
+          if [ -d "${BUILD_DIR}/bin/resources/profanity" ]; then
+            cp -r "${BUILD_DIR}/bin/resources/profanity" "${APPDIR}/usr/bin/"
+          elif [ -d "${ROOT_DIR}/resources/profanity" ]; then
+            cp -r "${ROOT_DIR}/resources/profanity" "${APPDIR}/usr/bin/"
+          fi
+          # Place language resources where the runtime looks for them (next to the binary).
+          # Prefer build output under build/bin/resources when present.
+          if [ -d "${BUILD_DIR}/bin/resources/lang" ]; then
+            mkdir -p "${APPDIR}/usr/bin/resources" "${APPDIR}/usr/bin/lang"
+            cp -r "${BUILD_DIR}/bin/resources/lang/." "${APPDIR}/usr/bin/resources/"
+            cp -r "${BUILD_DIR}/bin/resources/lang/." "${APPDIR}/usr/bin/lang/"
+          elif [ -d "${ROOT_DIR}/resources/lang" ]; then
+            mkdir -p "${APPDIR}/usr/bin/resources" "${APPDIR}/usr/bin/lang"
+            cp -r "${ROOT_DIR}/resources/lang/." "${APPDIR}/usr/bin/resources/"
+            cp -r "${ROOT_DIR}/resources/lang/." "${APPDIR}/usr/bin/lang/"
+          fi
+
+          # Also copy resources into shared and top-level resource dirs for AppImage
+          if [ -d "${BUILD_DIR}/bin/resources/lang" ]; then
+            mkdir -p "${APPDIR}/usr/share/coollivecaptions/resources" "${APPDIR}/resources"
+            cp -r "${BUILD_DIR}/bin/resources/lang/." "${APPDIR}/usr/share/coollivecaptions/resources/"
+            cp -r "${BUILD_DIR}/bin/resources/lang/." "${APPDIR}/resources/"
+          elif [ -d "${ROOT_DIR}/resources/lang" ]; then
+            mkdir -p "${APPDIR}/usr/share/coollivecaptions/resources" "${APPDIR}/resources"
+            cp -r "${ROOT_DIR}/resources/lang/." "${APPDIR}/usr/share/coollivecaptions/resources/"
+            cp -r "${ROOT_DIR}/resources/lang/." "${APPDIR}/resources/"
+          fi
+
+          cat > "${DESKTOP_FILE}" <<EOF
+          [Desktop Entry]
+          Type=Application
+          Name=Cool Live Captions
+          Exec=${BIN_NAME}
+          Icon=${BIN_NAME}
+          Categories=AudioVideo;Utility;
+          Terminal=false
+          EOF
+
+          if [ -f "${ICON_SRC_PNG}" ]; then
+            cp "${ICON_SRC_PNG}" "${APPDIR}/usr/share/icons/hicolor/256x256/apps/${BIN_NAME}.png"
+          else
+            echo "warning: no icon found at ${ICON_SRC_PNG}"
+          fi
+
+          LINUXDEPLOY="${BUILD_DIR}/linuxdeploy-x86_64.AppImage"
+          APPIMAGETOOL="${BUILD_DIR}/appimagetool-x86_64.AppImage"
+
+          if [ ! -x "${LINUXDEPLOY}" ]; then
+            curl -L "https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage" -o "${LINUXDEPLOY}"
+            chmod +x "${LINUXDEPLOY}"
+          fi
+
+          if [ ! -x "${APPIMAGETOOL}" ]; then
+            curl -L "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage" -o "${APPIMAGETOOL}"
+            chmod +x "${APPIMAGETOOL}"
+          fi
+
+          export APPIMAGE_EXTRACT_AND_RUN=1
+
+          LINUXDEPLOY_ARGS=(
+            --appdir "${APPDIR}"
+            --executable "${APPDIR}/usr/bin/${BIN_NAME}"
+            --desktop-file "${DESKTOP_FILE}"
+            --icon-file "${APPDIR}/usr/share/icons/hicolor/256x256/apps/${BIN_NAME}.png"
+          )
+
+          if [[ "${BUNDLE_AUDIO_LIBS}" -eq 0 ]]; then
+            LINUXDEPLOY_ARGS+=(
+              --exclude-library "libpulse*"
+              --exclude-library "libpipewire-0.3*"
+            )
+          fi
+
+          "${LINUXDEPLOY}" "${LINUXDEPLOY_ARGS[@]}"
+
+          "${APPIMAGETOOL}" "${APPDIR}" "${BUILD_DIR}/${APPNAME}.AppImage"
+
+          echo "AppImage created at: ${BUILD_DIR}/${APPNAME}.AppImage"
+
+      - name: Collect AppImage artifact
+        run: |
+          src="build-appimage/Cool Live Caption.AppImage"
+          dest="build/cool-live-captions-${RELEASE_VERSION}-amd64.AppImage"
+          mkdir -p build
+          if [ ! -f "$src" ]; then
+            echo "AppImage not found at $src"
+            ls -l build-appimage || true
+            exit 1
+          fi
+          mv "$src" "$dest"
+
+      - name: Upload AppImage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cool-live-captions_${{ env.RELEASE_VERSION }}_linux_amd64.appimage
+          path: build/cool-live-captions-${{ env.RELEASE_VERSION }}-amd64.AppImage
+          if-no-files-found: warn
+          compression-level: 0
+          overwrite: true
+
+  linux-release-deb:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set release version
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          echo "RELEASE_VERSION=$version" >> "$GITHUB_ENV"
+
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            dpkg-dev \
+            ninja-build \
+            libgl1-mesa-dev libglu1-mesa-dev \
+            libx11-dev libxrandr-dev libxinerama-dev libxi-dev libxcursor-dev \
+            libxkbcommon-dev libwayland-dev wayland-protocols \
+            libpipewire-0.3-dev libspa-0.2-dev
+
+      - name: Build Debian package
+        env:
+          MAINTAINER: Luca Jones <batterydie@gmail.com>
+        run: |
+          set -euo pipefail
+
+          ROOT_DIR="${GITHUB_WORKSPACE}"
+          BUILD_DIR="${ROOT_DIR}/build-deb"
+          PKG_DIR="${BUILD_DIR}/pkgroot"
+          APP_DIR="${PKG_DIR}/opt/coollivecaptions"
+          BIN_NAME="coollivecaptions"
+          APP_NAME="Cool Live Captions"
+          ICON_SRC_PNG="${ROOT_DIR}/resources/icon-appimage.png"
+          DESKTOP_FILE="${PKG_DIR}/usr/share/applications/${BIN_NAME}.desktop"
+          MAINTAINER="${MAINTAINER:-Luca Jones <batterydie@gmail.com>}"
+
+          APP_VERSION_MAJOR=$(awk -F'[() ]+' '/set\(APP_VERSION_MAJOR/{print $3}' "${ROOT_DIR}/CMakeLists.txt")
+          APP_VERSION_MINOR=$(awk -F'[() ]+' '/set\(APP_VERSION_MINOR/{print $3}' "${ROOT_DIR}/CMakeLists.txt")
+          APP_VERSION_PATCH=$(awk -F'[() ]+' '/set\(APP_VERSION_PATCH/{print $3}' "${ROOT_DIR}/CMakeLists.txt")
+          VERSION="${APP_VERSION_MAJOR}.${APP_VERSION_MINOR}.${APP_VERSION_PATCH}"
+          ARCH=$(dpkg --print-architecture)
+
+          cmake -S "${ROOT_DIR}" -B "${BUILD_DIR}" -G Ninja -DCMAKE_BUILD_TYPE=Release
+          cmake --build "${BUILD_DIR}" --target "${BIN_NAME}"
+
+          rm -rf "${PKG_DIR}"
+          mkdir -p \
+            "${PKG_DIR}/DEBIAN" \
+            "${APP_DIR}" \
+            "${PKG_DIR}/usr/bin" \
+            "${PKG_DIR}/usr/share/applications" \
+            "${PKG_DIR}/usr/share/icons/hicolor/256x256/apps" \
+            "${PKG_DIR}/usr/share/doc/${BIN_NAME}"
+
+          cp "${BUILD_DIR}/bin/${BIN_NAME}" "${APP_DIR}/"
+          mv "${APP_DIR}/${BIN_NAME}" "${APP_DIR}/${BIN_NAME}.bin"
+          echo "App directory after copying binary:"
+          ls -la "${APP_DIR}"
+
+          # Bundle runtime siblings that our CMake copies next to the binary.
+          if compgen -G "${BUILD_DIR}/bin/*.so*" > /dev/null; then
+            cp "${BUILD_DIR}/bin"/*.so* "${APP_DIR}/"
+            echo "Copied shared libraries from build output."
+            ls -la "${APP_DIR}" | grep -E '\.so(\.|$)' || true
+          else
+            echo "No shared libraries matched ${BUILD_DIR}/bin/*.so*"
+          fi
+
+          if [ -f "${APP_DIR}/libaprilasr.so.0.1" ] && [ ! -f "${APP_DIR}/libaprilasr.so.2023" ]; then
+            ln -sf "libaprilasr.so.0.1" "${APP_DIR}/libaprilasr.so.2023"
+            echo "Created symlink libaprilasr.so.2023 -> libaprilasr.so.0.1"
+          fi
+
+          if [ -f "${APP_DIR}/libonnxruntime.so" ] && [ ! -f "${APP_DIR}/libonnxruntime.so.1" ]; then
+            ln -sf "libonnxruntime.so" "${APP_DIR}/libonnxruntime.so.1"
+            echo "Created symlink libonnxruntime.so.1 -> libonnxruntime.so"
+          fi
+          # Copy profanity into APP_DIR/resources/profanity (prefer build output)
+          if [ -d "${BUILD_DIR}/bin/resources/profanity" ]; then
+            mkdir -p "${APP_DIR}/resources/profanity"
+            cp -r "${BUILD_DIR}/bin/resources/profanity/." "${APP_DIR}/resources/profanity/"
+            echo "Copied profanity resources from build output."
+          elif [ -d "${ROOT_DIR}/resources/profanity" ]; then
+            mkdir -p "${APP_DIR}/resources/profanity"
+            cp -r "${ROOT_DIR}/resources/profanity/." "${APP_DIR}/resources/profanity/"
+            echo "Copied profanity resources from repo."
+          fi
+
+          # Copy language files into APP_DIR/resources/lang (prefer build output)
+          if [ -d "${BUILD_DIR}/bin/resources/lang" ]; then
+            mkdir -p "${APP_DIR}/resources/lang"
+            cp -r "${BUILD_DIR}/bin/resources/lang/." "${APP_DIR}/resources/lang/"
+            echo "Copied language resources from build output."
+          elif [ -d "${ROOT_DIR}/resources/lang" ]; then
+            mkdir -p "${APP_DIR}/resources/lang"
+            cp -r "${ROOT_DIR}/resources/lang/." "${APP_DIR}/resources/lang/"
+            echo "Copied language resources from repo."
+          fi
+
+          cat > "${PKG_DIR}/usr/bin/${BIN_NAME}" <<'EOF'
+          #!/usr/bin/env bash
+          set -euo pipefail
+          APP_DIR="/opt/coollivecaptions"
+          export LD_LIBRARY_PATH="${APP_DIR}:${LD_LIBRARY_PATH:-}"
+          exec "${APP_DIR}/coollivecaptions.bin" "$@"
+          EOF
+          chmod 0755 "${PKG_DIR}/usr/bin/${BIN_NAME}"
+
+          cat > "${DESKTOP_FILE}" <<EOF
+          [Desktop Entry]
+          Type=Application
+          Name=${APP_NAME}
+          Exec=${BIN_NAME}
+          Icon=${BIN_NAME}
+          Categories=AudioVideo;Utility;
+          Terminal=false
+          EOF
+
+          if [ -f "${ICON_SRC_PNG}" ]; then
+            cp "${ICON_SRC_PNG}" "${PKG_DIR}/usr/share/icons/hicolor/256x256/apps/${BIN_NAME}.png"
+          else
+            echo "warning: no icon found at ${ICON_SRC_PNG}"
+          fi
+
+          if [ -f "${ROOT_DIR}/LICENSE" ]; then
+            cp "${ROOT_DIR}/LICENSE" "${PKG_DIR}/usr/share/doc/${BIN_NAME}/"
+            echo "Copied LICENSE."
+          fi
+          if [ -f "${ROOT_DIR}/THIRD-PARTY-LICENSES" ]; then
+            cp "${ROOT_DIR}/THIRD-PARTY-LICENSES" "${PKG_DIR}/usr/share/doc/${BIN_NAME}/"
+            echo "Copied THIRD-PARTY-LICENSES."
+          fi
+
+          DEPENDS=""
+          if command -v dpkg-shlibdeps >/dev/null 2>&1; then
+            SHLIBS_OUTPUT=""
+            if SHLIBS_OUTPUT=$(dpkg-shlibdeps -O "${APP_DIR}/${BIN_NAME}" 2>/dev/null); then
+              SHLIBS=${SHLIBS_OUTPUT#shlibs:Depends=}
+              if [ -n "${SHLIBS}" ]; then
+                DEPENDS="${SHLIBS}"
+              fi
+            else
+              echo "warning: dpkg-shlibdeps failed; falling back to a default Depends list"
+            fi
+          fi
+
+          if [ -z "${DEPENDS}" ]; then
+            DEPENDS="libc6, libstdc++6, libgcc-s1, libgl1, libx11-6, libxi6, libxrandr2, libxinerama1, libxcursor1, libasound2, libpulse0, libpipewire-0.3-0"
+          fi
+
+          cat > "${PKG_DIR}/DEBIAN/control" <<EOF
+          Package: ${BIN_NAME}
+          Version: ${VERSION}
+          Section: sound
+          Priority: optional
+          Architecture: ${ARCH}
+          Depends: ${DEPENDS}
+          Maintainer: ${MAINTAINER}
+          Homepage: https://github.com/BatteryDie/Cool-Live-Captions
+          Description: FOSS desktop live captioning application 
+           Cool Live Captions converts audio from your microphone or system audio into
+           real-time captions. Speech recognition runs on-device using april-asr with
+           ONNX Runtime. 
+           Features include model discovery, profanity filter, and transcript saving.
+          EOF
+
+          OUTPUT_DEB="${BUILD_DIR}/${BIN_NAME}_${VERSION}_${ARCH}.deb"
+          dpkg-deb --build "${PKG_DIR}" "${OUTPUT_DEB}"
+
+          echo "Package contents (summary):"
+          dpkg-deb -c "${OUTPUT_DEB}" | head -n 200
+          echo "Debian package created at: ${OUTPUT_DEB}"
+
+      - name: Collect Debian package
+        run: |
+          src=$(ls -1 build-deb/*.deb | head -n 1)
+          dest="build/cool-live-captions-${RELEASE_VERSION}-amd64.deb"
+          mkdir -p build
+          if [ -z "${src}" ]; then
+            echo "Debian package not found in build-deb"
+            ls -l build-deb || true
+            exit 1
+          fi
+          mv "${src}" "${dest}"
+
+      - name: Upload Debian artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: cool-live-captions_${{ env.RELEASE_VERSION }}_linux_amd64.deb
+          path: build/cool-live-captions-${{ env.RELEASE_VERSION }}-amd64.deb
+          if-no-files-found: warn
+          compression-level: 0
+          overwrite: true
+
