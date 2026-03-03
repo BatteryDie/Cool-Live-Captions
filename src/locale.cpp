@@ -93,7 +93,6 @@ void LocaleManager::load(const std::filesystem::path &exe_path, const std::strin
   languages_.clear();
   translations_.clear();
   std::vector<std::filesystem::path> candidates = {
-    exe_path / "lang",
     exe_path / "resources" / "lang",
     exe_path.parent_path() / "resources" / "lang",
     std::filesystem::path("/usr/share/coollivecaptions/resources/lang"),
