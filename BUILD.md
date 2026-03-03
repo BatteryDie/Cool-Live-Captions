@@ -4,10 +4,14 @@ This document provides instructions for building Cool Live Captions from source 
 
 ## Requirements
 
-- CMake 3.24
+- CMake 3.31.X - Please note that 4.0 versions or newer may work but are not guaranteed to be compatible.
 - C++20 toolchain (GCC/Clang/MinGW)
 - ONNX Runtime (auto-fetched by cmake if not provided)
 - april-asr (auto-fetched by cmake if not provided)
+
+Tested CMake version:
+- 3.31.6 from Debian 13 Trixie for Linux
+- 3.31.10 from MS Visual Studio Build Tools 2026 (18.2.1) for Windows
 
 ## Getting Started
 
@@ -30,11 +34,11 @@ This document provides instructions for building Cool Live Captions from source 
 ### Build: Windows (MSVC)
 
 ```powershell
-cmake -S . -B build-windows-msvc-release -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
+cmake -S . -B build-windows-msvc-release -G "Visual Studio 18 2026" -A x64 -DCMAKE_BUILD_TYPE=Release
 cmake --build build-windows-msvc-release --config Release
 ```
 ```powershell
-cmake -S . -B build-windows-msvc-debug -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Debug
+cmake -S . -B build-windows-msvc-debug -G "Visual Studio 18 2026" -A x64 -DCMAKE_BUILD_TYPE=Debug
 cmake --build build-windows-msvc-debug --config Debug
 ```
 
@@ -53,7 +57,30 @@ cmake --build build-windows-debug
 
 The build copies ONNX/april-asr DLLs and MinGW runtimes (`libgcc_s_seh-1.dll`, `libstdc++-6.dll`, `libwinpthread-1.dll`, `libsrdc.dll`) next to the exe for redistribution.
 
+The anti-virus false positives are common for MinGW builds. If your build is flagged, two options:
+- Add an exception for the build folder in your anti-virus software.
+- Build with MSVC instead, which is less likely to be flagged.
+
 ### Build: Linux (GCC/Clang)
+
+Install the required packages (tested on Debian/Ubuntu-based distros):
+```bash
+sudo apt install \
+  dpkg-dev \
+  ninja-build \
+  libgl1-mesa-dev \
+  libglu1-mesa-dev \
+  libx11-dev \
+  libxrandr-dev \
+  libxinerama-dev \
+  libxi-dev \
+  libxcursor-dev \
+  libxkbcommon-dev \
+  libwayland-dev \
+  wayland-protocols \
+  libpipewire-0.3-dev \
+  libspa-0.2-dev
+```
 
 ```bash
 cmake -S . -B build-linux-release -G Ninja -DCMAKE_BUILD_TYPE=Release
@@ -64,7 +91,14 @@ cmake -S . -B build-linux-debug -G Ninja -DCMAKE_BUILD_TYPE=Debug
 cmake --build build-linux-debug
 ```
 
-To build and test AppImage, please refer to `deploy/build_appimage.sh` script.
+```bash
+cmake -S . -B build-linux-release -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build-linux-release
+```
+```bash
+cmake -S . -B build-linux-debug -G Ninja -DCMAKE_BUILD_TYPE=Debug
+cmake --build build-linux-debug
+```
 
 ### Build: macOS (Clang)
 
