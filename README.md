@@ -2,7 +2,7 @@
 
 A free and open source live caption desktop application that converts audio from your microphone or system audio to text in real-time. The speech recognition is powered by april-asr library with ONNX format. All processed on-device using your CPU.
 
-> Disclaimer: Cool Live Captions is experimental and captions may not be 100% accurate.
+> Disclaimer: Cool Live Captions is experimental and captions may not be 100% accurate. Please do not rely on it for critical purposes.
 
 ### OS Support
 

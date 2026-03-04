@@ -4,7 +4,7 @@
   <string id="menu.settings">Settings</string>
   <string id="menu.help">Help</string>
   <string id="menu.localization">Language</string>
-  <string id="modal.caption_model_required">No caption model(s) found. Would you like to download a caption model(s) now?\n\nDisclaimer: The captions may not be 100% accurate.</string>
+  <string id="modal.caption_model_required">No caption model(s) found. Would you like to download a caption model(s) now?\n\nDisclaimer: The captions may not be 100% accurate. Please do not rely on it for critical purposes.</string>
   <string id="menu.always_on_top">Always On Top</string>
   <string id="menu.auto_check_updates">Automatically Check for Updates</string>
   <string id="menu.audio_sources">Audio Sources</string>
@@ -31,7 +31,7 @@
   <string id="dialog.yes">Yes</string>
   <string id="dialog.no">No</string>
   <string id="modal.caption_model_required_title">Caption Model Required</string>
-  <string id="modal.caption_model_required_text">No caption model(s) found. Would you like to download a caption model(s) now?\n\nDisclaimer: The captions may not be 100% accurate.</string>
+  <string id="modal.caption_model_required_text">No caption model(s) found. Would you like to download a caption model(s) now?\n\nDisclaimer: The captions may not be 100% accurate. Please do not rely on it for critical purposes.</string>
   <string id="about.tagline">FOSS live caption desktop application</string>
   <string id="appearance.caption_colors">Caption Colors</string>
   <string id="appearance.text">Text</string>
