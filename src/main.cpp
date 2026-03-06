@@ -311,6 +311,8 @@ struct ManagedModelUiState {
   std::filesystem::path import_dir;
   std::string import_selected;
   std::array<char, 512> import_path{};
+  std::vector<std::filesystem::path> import_history;
+  int import_history_index = -1;
   std::vector<ModelManager::RemoteModel> manifest;
   std::map<std::string, ModelManager::InstalledModel> installed;
   std::optional<std::size_t> selected_online;
@@ -1668,6 +1670,11 @@ int run_app(int argc, char **argv) {
     ImGui::SetNextWindowSizeConstraints(ImVec2(320.0f, 0.0f), ImVec2(520.0f, FLT_MAX));
     bool about_keep_open = true;
     if (ImGui::BeginPopupModal(tr_about.c_str(), &about_keep_open, ImGuiWindowFlags_AlwaysAutoResize)) {
+      if (ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+        ImGui::CloseCurrentPopup();
+        about_open = false;
+      }
+
       ImGui::TextWrapped(locale.t("about.tagline").c_str());
       ImGui::Separator();
       ImGui::Text((locale.t("about.version_fmt")).c_str(), kAppVersion);
@@ -1817,6 +1824,10 @@ int run_app(int argc, char **argv) {
       ImVec2 modal_size = ImVec2(io.DisplaySize.x * 0.8f, io.DisplaySize.y * 0.8f);
       ImGui::SetWindowSize(modal_size);
       ImGui::SetWindowPos(ImVec2(io.DisplaySize.x * 0.1f, io.DisplaySize.y * 0.1f));
+
+      if (ImGui::IsKeyPressed(ImGuiKey_Escape) && !managed_ui.download_inflight) {
+        ImGui::CloseCurrentPopup();
+      }
 
       float content_height = ImGui::GetContentRegionAvail().y;
       float list_width = ImGui::GetContentRegionAvail().x * 0.55f;
@@ -2137,46 +2148,114 @@ int run_app(int argc, char **argv) {
       ImGui::Separator();
       ImGui::Spacing();
 
+      // Helper to add directory to navigation history
+      auto add_to_history = [&](const std::filesystem::path &path) {
+        if (managed_ui.import_history_index >= 0 && 
+            managed_ui.import_history_index < (int)managed_ui.import_history.size() &&
+            managed_ui.import_history[managed_ui.import_history_index] == path) {
+          return; // Already at this location
+        }
+        // Remove any forward history when navigating to a new location
+        if (managed_ui.import_history_index < (int)managed_ui.import_history.size() - 1) {
+          managed_ui.import_history.erase(
+            managed_ui.import_history.begin() + managed_ui.import_history_index + 1,
+            managed_ui.import_history.end()
+          );
+        }
+        managed_ui.import_history.push_back(path);
+        managed_ui.import_history_index = (int)managed_ui.import_history.size() - 1;
+      };
+
+      // Navigation buttons
+      std::string back_label_str = locale.t("import.back");
+      std::string forward_label_str = locale.t("import.forward");
       std::string go_label_str = locale.t("import.go");
       std::string up_label_str = locale.t("import.up");
+      const char *back_label = back_label_str.c_str();
+      const char *forward_label = forward_label_str.c_str();
       const char *go_label = go_label_str.c_str();
       const char *up_label = up_label_str.c_str();
+      
+      ImVec2 back_text = ImGui::CalcTextSize(back_label);
+      ImVec2 forward_text = ImGui::CalcTextSize(forward_label);
       ImVec2 go_text = ImGui::CalcTextSize(go_label);
       ImVec2 up_text = ImGui::CalcTextSize(up_label);
       float pad_x = ImGui::GetStyle().FramePadding.x;
+      float back_w = back_text.x + pad_x * 2.0f;
+      float forward_w = forward_text.x + pad_x * 2.0f;
       float go_w = go_text.x + pad_x * 2.0f;
       float up_w = up_text.x + pad_x * 2.0f;
       float spacing = ImGui::GetStyle().ItemSpacing.x;
       float avail = ImGui::GetContentRegionAvail().x;
-      float input_w = avail - (go_w + up_w + spacing * 2.0f);
-      if (input_w < 80.0f) input_w = std::max(40.0f, avail - (go_w + up_w + spacing));
+      float input_w = avail - (back_w + forward_w + go_w + up_w + spacing * 4.0f);
+      if (input_w < 80.0f) input_w = std::max(40.0f, avail - (back_w + forward_w + go_w + up_w + spacing * 3.0f));
+
+      // Back button
+      bool can_go_back = managed_ui.import_history_index > 0;
+      ImGui::BeginDisabled(!can_go_back);
+      if (ImGui::Button(back_label, ImVec2(back_w, 0))) {
+        if (can_go_back) {
+          managed_ui.import_history_index--;
+          managed_ui.import_dir = managed_ui.import_history[managed_ui.import_history_index];
+          std::snprintf(managed_ui.import_path.data(), managed_ui.import_path.size(), "%s", managed_ui.import_dir.string().c_str());
+          managed_ui.import_selected.clear();
+          managed_ui.import_error.clear();
+        }
+      }
+      ImGui::EndDisabled();
+      ImGui::SameLine();
+
+      // Forward button
+      bool can_go_forward = managed_ui.import_history_index >= 0 && 
+                            managed_ui.import_history_index < (int)managed_ui.import_history.size() - 1;
+      ImGui::BeginDisabled(!can_go_forward);
+      if (ImGui::Button(forward_label, ImVec2(forward_w, 0))) {
+        if (can_go_forward) {
+          managed_ui.import_history_index++;
+          managed_ui.import_dir = managed_ui.import_history[managed_ui.import_history_index];
+          std::snprintf(managed_ui.import_path.data(), managed_ui.import_path.size(), "%s", managed_ui.import_dir.string().c_str());
+          managed_ui.import_selected.clear();
+          managed_ui.import_error.clear();
+        }
+      }
+      ImGui::EndDisabled();
+      ImGui::SameLine();
+
+      // Up button
+      if (ImGui::Button(up_label, ImVec2(up_w, 0))) {
+        if (!managed_ui.import_dir.empty()) {
+          managed_ui.import_dir = managed_ui.import_dir.parent_path();
+          add_to_history(managed_ui.import_dir);
+          std::snprintf(managed_ui.import_path.data(), managed_ui.import_path.size(), "%s", managed_ui.import_dir.string().c_str());
+          managed_ui.import_selected.clear();
+        }
+      }
+      ImGui::SameLine();
+
+      // Path input
       ImGui::PushItemWidth(input_w);
       if (ImGui::InputText("##import_path", managed_ui.import_path.data(), managed_ui.import_path.size())) {
         // keep buffer in sync; actual navigation happens via Go
       }
       ImGui::PopItemWidth();
       ImGui::SameLine();
+
+      // Go button
       if (ImGui::Button(go_label, ImVec2(go_w, 0))) {
         std::filesystem::path input_path = managed_ui.import_path.data();
         std::error_code ec;
         if (std::filesystem::is_directory(input_path, ec)) {
           managed_ui.import_dir = input_path;
+          add_to_history(managed_ui.import_dir);
           managed_ui.import_selected.clear();
           managed_ui.import_error.clear();
         } else if (std::filesystem::is_regular_file(input_path, ec)) {
           managed_ui.import_dir = input_path.parent_path();
+          add_to_history(managed_ui.import_dir);
           managed_ui.import_selected = input_path.filename().string();
           managed_ui.import_error.clear();
         } else {
           managed_ui.import_error = locale.t("import.path_not_found");
-        }
-      }
-      ImGui::SameLine();
-      if (ImGui::Button(up_label, ImVec2(up_w, 0))) {
-        if (!managed_ui.import_dir.empty()) {
-          managed_ui.import_dir = managed_ui.import_dir.parent_path();
-          std::snprintf(managed_ui.import_path.data(), managed_ui.import_path.size(), "%s", managed_ui.import_dir.string().c_str());
-          managed_ui.import_selected.clear();
         }
       }
 
@@ -2210,60 +2289,150 @@ int run_app(int argc, char **argv) {
         }
       };
 
-      ImGui::BeginChild("import_list", ImVec2(0, -ImGui::GetFrameHeightWithSpacing() * 2.2f), true);
-      if (managed_ui.import_dir.empty()) {
-        ImGui::TextDisabled(locale.t("import.no_directory_selected").c_str());
-      } else {
-        std::vector<std::filesystem::directory_entry> dirs;
-        std::vector<std::filesystem::directory_entry> files;
-        std::error_code ec;
-        for (const auto &entry : std::filesystem::directory_iterator(managed_ui.import_dir, ec)) {
-          if (entry.is_directory(ec)) {
-            dirs.push_back(entry);
-          } else if (entry.is_regular_file(ec) && is_model_file(entry.path())) {
-            files.push_back(entry);
-          }
-        }
-        std::sort(dirs.begin(), dirs.end(), [](const auto &a, const auto &b) { return a.path().filename() < b.path().filename(); });
-        std::sort(files.begin(), files.end(), [](const auto &a, const auto &b) { return a.path().filename() < b.path().filename(); });
-
-        for (const auto &entry : dirs) {
-          std::string label = entry.path().filename().string() + "/";
-          if (ImGui::Selectable(label.c_str(), false, 0, ImVec2(0, 0))) {
-            managed_ui.import_dir = entry.path();
-            std::snprintf(managed_ui.import_path.data(), managed_ui.import_path.size(), "%s", managed_ui.import_dir.string().c_str());
-            managed_ui.import_selected.clear();
-          }
-        }
-        for (const auto &entry : files) {
-          std::string label = entry.path().filename().string();
-          bool selected = managed_ui.import_selected == label;
-          if (ImGui::Selectable(label.c_str(), selected, 0, ImVec2(0, 0))) {
-            managed_ui.import_selected = label;
-          }
-          if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
-            managed_ui.import_selected = label;
-            do_import();
-          }
-        }
-      }
-      ImGui::EndChild();
-
-      ImGui::Spacing();
-      ImGui::Separator();
-      ImGui::Spacing();
-
-      bool can_import = !managed_ui.import_selected.empty();
-      ImGui::BeginDisabled(!can_import);
-      if (ImGui::Button(locale.t("import.import_btn").c_str(), ImVec2(120, 0))) {
-        do_import();
-      }
-      ImGui::EndDisabled();
-      ImGui::SameLine();
-      if (ImGui::Button(locale.t("import.cancel").c_str(), ImVec2(120, 0))) {
+      if (ImGui::IsKeyPressed(ImGuiKey_Escape)) {
         ImGui::CloseCurrentPopup();
         managed_ui.open_modal = true;
       }
+
+      const float import_footer_h = ImGui::GetFrameHeightWithSpacing() * 2.2f;
+      ImGui::BeginGroup();
+      {
+        // Calculate sidebar width dynamically based on content
+        std::vector<std::string> sidebar_labels = {
+          locale.t("import.sidebar_home"),
+          locale.t("import.sidebar_documents"),
+          locale.t("import.sidebar_downloads"),
+          locale.t("import.sidebar_desktop"),
+          locale.t("import.sidebar_root"),
+        };
+        float max_label_width = 0.0f;
+        for (const auto &label : sidebar_labels) {
+          ImVec2 text_size = ImGui::CalcTextSize(label.c_str());
+          max_label_width = std::max(max_label_width, text_size.x);
+        }
+        float sidebar_width = max_label_width + ImGui::GetStyle().FramePadding.x * 4.0f + ImGui::GetStyle().ItemSpacing.x;
+        sidebar_width = std::max(sidebar_width, 120.0f); // minimum width
+        sidebar_width = std::min(sidebar_width, 220.0f); // maximum width
+        
+        ImGui::BeginChild("import_sidebar", ImVec2(sidebar_width, -import_footer_h), true);
+        
+        // Location group
+        ImGui::TextDisabled("Location:");
+        std::vector<std::pair<std::string, std::filesystem::path>> std_locations = {
+          {locale.t("import.sidebar_home"), std::filesystem::path(std::getenv("HOME") ? std::getenv("HOME") : "/root")},
+          {locale.t("import.sidebar_desktop"), std::filesystem::path(std::getenv("HOME") ? std::getenv("HOME") : "/root") / "Desktop"},
+          {locale.t("import.sidebar_documents"), std::filesystem::path(std::getenv("HOME") ? std::getenv("HOME") : "/root") / "Documents"},
+          {locale.t("import.sidebar_downloads"), std::filesystem::path(std::getenv("HOME") ? std::getenv("HOME") : "/root") / "Downloads"},
+        };
+        
+        for (const auto &[label, path] : std_locations) {
+          std::error_code ec;
+          if (std::filesystem::exists(path, ec)) {
+            bool is_current = path == managed_ui.import_dir;
+            if (ImGui::Selectable(label.c_str(), is_current)) {
+              managed_ui.import_dir = path;
+              add_to_history(managed_ui.import_dir);
+              std::snprintf(managed_ui.import_path.data(), managed_ui.import_path.size(), "%s", managed_ui.import_dir.string().c_str());
+              managed_ui.import_selected.clear();
+              managed_ui.import_error.clear();
+            }
+          }
+        }
+        
+        ImGui::Spacing();
+        ImGui::TextDisabled("Drive:");
+        
+        // Drive group
+        std::vector<std::pair<std::string, std::filesystem::path>> drives = {
+          {locale.t("import.sidebar_root"), "/"}
+        };
+        
+        for (const auto &[label, path] : drives) {
+          std::error_code ec;
+          if (std::filesystem::exists(path, ec)) {
+            bool is_current = path == managed_ui.import_dir;
+            if (ImGui::Selectable(label.c_str(), is_current)) {
+              managed_ui.import_dir = path;
+              add_to_history(managed_ui.import_dir);
+              std::snprintf(managed_ui.import_path.data(), managed_ui.import_path.size(), "%s", managed_ui.import_dir.string().c_str());
+              managed_ui.import_selected.clear();
+              managed_ui.import_error.clear();
+            }
+          }
+        }
+        
+        ImGui::EndChild();
+      }
+      
+      ImGui::SameLine();
+      
+      {
+        ImGui::BeginChild("import_list", ImVec2(0, -import_footer_h), true);
+        if (managed_ui.import_dir.empty()) {
+          ImGui::TextDisabled(locale.t("import.no_directory_selected").c_str());
+        } else {
+          std::vector<std::filesystem::directory_entry> dirs;
+          std::vector<std::filesystem::directory_entry> files;
+          std::error_code ec;
+          for (const auto &entry : std::filesystem::directory_iterator(managed_ui.import_dir, ec)) {
+            if (entry.is_directory(ec)) {
+              dirs.push_back(entry);
+            } else if (entry.is_regular_file(ec) && is_model_file(entry.path())) {
+              files.push_back(entry);
+            }
+          }
+          std::sort(dirs.begin(), dirs.end(), [](const auto &a, const auto &b) { return a.path().filename() < b.path().filename(); });
+          std::sort(files.begin(), files.end(), [](const auto &a, const auto &b) { return a.path().filename() < b.path().filename(); });
+
+          for (const auto &entry : dirs) {
+            std::string label = entry.path().filename().string() + "/";
+            if (ImGui::Selectable(label.c_str(), false, 0, ImVec2(0, 0))) {
+              managed_ui.import_dir = entry.path();
+              add_to_history(managed_ui.import_dir);
+              std::snprintf(managed_ui.import_path.data(), managed_ui.import_path.size(), "%s", managed_ui.import_dir.string().c_str());
+              managed_ui.import_selected.clear();
+            }
+          }
+          for (const auto &entry : files) {
+            std::string label = entry.path().filename().string();
+            bool selected = managed_ui.import_selected == label;
+            if (ImGui::Selectable(label.c_str(), selected, 0, ImVec2(0, 0))) {
+              managed_ui.import_selected = label;
+            }
+            if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left)) {
+              managed_ui.import_selected = label;
+              do_import();
+            }
+          }
+        }
+        ImGui::EndChild();
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        // Right-align the action buttons
+        float button_width = 120.0f;
+        float buttons_total_width = button_width * 2.0f + ImGui::GetStyle().ItemSpacing.x;
+        float avail_width = ImGui::GetContentRegionAvail().x;
+        float offset = avail_width - buttons_total_width;
+        if (offset > 0) {
+          ImGui::SetCursorPosX(ImGui::GetCursorPosX() + offset);
+        }
+
+        bool can_import = !managed_ui.import_selected.empty();
+        ImGui::BeginDisabled(!can_import);
+        if (ImGui::Button(locale.t("import.import_btn").c_str(), ImVec2(button_width, 0))) {
+          do_import();
+        }
+        ImGui::EndDisabled();
+        ImGui::SameLine();
+        if (ImGui::Button(locale.t("import.cancel").c_str(), ImVec2(button_width, 0))) {
+          ImGui::CloseCurrentPopup();
+          managed_ui.open_modal = true;
+        }
+      }
+      ImGui::EndGroup();
 
       ImGui::EndPopup();
     }
@@ -2286,6 +2455,11 @@ int run_app(int argc, char **argv) {
     if (ImGui::BeginPopupModal(locale.t("update.title").c_str(), nullptr,
                    ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove)) {
       update_popup_visible = true;
+      
+      if (ImGui::IsKeyPressed(ImGuiKey_Escape)) {
+        ImGui::CloseCurrentPopup();
+      }
+      
       bool checking = false;
       bool has_result = false;
       app_update::UpdateResult snapshot;
@@ -2302,7 +2476,7 @@ int run_app(int argc, char **argv) {
         float close_width = ImGui::CalcTextSize(tr_close.c_str()).x + style.FramePadding.x * 2.0f;
         float close_avail = ImGui::GetContentRegionAvail().x;
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (close_avail - close_width) * 0.5f);
-        if (ImGui::Button(tr_close.c_str())) {
+        if (ImGui::Button(tr_close.c_str()) || ImGui::IsKeyPressed(ImGuiKey_Enter)) {
           ImGui::CloseCurrentPopup();
         }
       } else if (!snapshot.success) {
@@ -2311,7 +2485,7 @@ int run_app(int argc, char **argv) {
         float close_width = ImGui::CalcTextSize(tr_close.c_str()).x + style.FramePadding.x * 2.0f;
         float close_avail = ImGui::GetContentRegionAvail().x;
         ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (close_avail - close_width) * 0.5f);
-        if (ImGui::Button(tr_close.c_str())) {
+        if (ImGui::Button(tr_close.c_str()) || ImGui::IsKeyPressed(ImGuiKey_Enter)) {
           ImGui::CloseCurrentPopup();
         }
       } else {
@@ -2327,7 +2501,7 @@ int run_app(int argc, char **argv) {
           const char *no_label = tr_update_cancel.c_str();
           (void)style;
           ImGui::Spacing();
-          if (ImGui::Button(yes_label, ImVec2(-FLT_MIN, 0))) {
+          if (ImGui::Button(yes_label, ImVec2(-FLT_MIN, 0)) || ImGui::IsKeyPressed(ImGuiKey_Enter)) {
             app_update::open_url(snapshot.latest_url);
             ImGui::CloseCurrentPopup();
           }
@@ -2340,7 +2514,7 @@ int run_app(int argc, char **argv) {
           float ok_width = ImGui::CalcTextSize(tr_ok.c_str()).x + style.FramePadding.x * 2.0f;
           float ok_avail = ImGui::GetContentRegionAvail().x;
           ImGui::SetCursorPosX(ImGui::GetCursorPosX() + (ok_avail - ok_width) * 0.5f);
-          if (ImGui::Button(tr_ok.c_str())) {
+          if (ImGui::Button(tr_ok.c_str()) || ImGui::IsKeyPressed(ImGuiKey_Enter)) {
             ImGui::CloseCurrentPopup();
           }
         }
