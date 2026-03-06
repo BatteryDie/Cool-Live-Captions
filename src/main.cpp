@@ -2318,11 +2318,12 @@ int run_app(int argc, char **argv) {
         
         // Location group
         ImGui::TextDisabled("Location:");
+        std::filesystem::path home_dir = user_home_dir();
         std::vector<std::pair<std::string, std::filesystem::path>> std_locations = {
-          {locale.t("import.sidebar_home"), std::filesystem::path(std::getenv("HOME") ? std::getenv("HOME") : "/root")},
-          {locale.t("import.sidebar_desktop"), std::filesystem::path(std::getenv("HOME") ? std::getenv("HOME") : "/root") / "Desktop"},
-          {locale.t("import.sidebar_documents"), std::filesystem::path(std::getenv("HOME") ? std::getenv("HOME") : "/root") / "Documents"},
-          {locale.t("import.sidebar_downloads"), std::filesystem::path(std::getenv("HOME") ? std::getenv("HOME") : "/root") / "Downloads"},
+          {locale.t("import.sidebar_home"), home_dir},
+          {locale.t("import.sidebar_desktop"), home_dir / "Desktop"},
+          {locale.t("import.sidebar_documents"), home_dir / "Documents"},
+          {locale.t("import.sidebar_downloads"), home_dir / "Downloads"},
         };
         
         for (const auto &[label, path] : std_locations) {
@@ -2343,9 +2344,35 @@ int run_app(int argc, char **argv) {
         ImGui::TextDisabled("Drive:");
         
         // Drive group
-        std::vector<std::pair<std::string, std::filesystem::path>> drives = {
-          {locale.t("import.sidebar_root"), "/"}
-        };
+        std::vector<std::pair<std::string, std::filesystem::path>> drives;
+#if defined(_WIN32)
+        DWORD drive_mask = GetLogicalDrives();
+        for (char letter = 'A'; letter <= 'Z'; ++letter) {
+          DWORD bit = 1u << (letter - 'A');
+          if ((drive_mask & bit) == 0) {
+            continue;
+          }
+          std::string root = std::string(1, letter) + ":\\";
+          std::error_code ec;
+          if (std::filesystem::exists(root, ec)) {
+            drives.emplace_back(std::string(1, letter) + ":", std::filesystem::path(root));
+          }
+        }
+#else
+        drives.emplace_back(locale.t("import.sidebar_root"), std::filesystem::path("/"));
+        {
+          std::error_code ec;
+          if (std::filesystem::exists("/media", ec)) {
+            drives.emplace_back("/media", std::filesystem::path("/media"));
+          }
+        }
+        {
+          std::error_code ec;
+          if (std::filesystem::exists("/mnt", ec)) {
+            drives.emplace_back("/mnt", std::filesystem::path("/mnt"));
+          }
+        }
+#endif
         
         for (const auto &[label, path] : drives) {
           std::error_code ec;
