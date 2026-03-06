@@ -1093,6 +1093,8 @@ int run_app(int argc, char **argv) {
   bool about_open = false;
   bool fullscreen_enabled = false;
   bool fullscreen_key_down = false;
+  bool spacebar_key_down = false;
+  bool f9_key_down = false;
   int windowed_x = 0;
   int windowed_y = 0;
   int windowed_w = settings.window_width > 0 ? settings.window_width : 1280;
@@ -1228,6 +1230,22 @@ int run_app(int argc, char **argv) {
       toggle_fullscreen();
     }
     fullscreen_key_down = f11_down;
+
+    bool spacebar_down = glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS;
+    if (spacebar_down && !spacebar_key_down) {
+      auto_scroll_enabled = !auto_scroll_enabled;
+      settings.auto_scroll = auto_scroll_enabled;
+      save_settings(settings_path, settings);
+    }
+    spacebar_key_down = spacebar_down;
+
+    bool f9_down = glfwGetKey(window, GLFW_KEY_F9) == GLFW_PRESS;
+    if (f9_down && !f9_key_down) {
+      settings.always_on_top = !settings.always_on_top;
+      glfwSetWindowAttrib(window, GLFW_FLOATING, settings.always_on_top ? GLFW_TRUE : GLFW_FALSE);
+      save_settings(settings_path, settings);
+    }
+    f9_key_down = f9_down;
 
     // Startup sequencing: run in-app update check first, then check for managed model updates.
     if (startup_model_update_pending && !startup_model_update_started) {
@@ -1604,7 +1622,7 @@ int run_app(int argc, char **argv) {
 
         ImGui::TextDisabled(locale.t("menu.section_windows").c_str());
         bool atop = settings.always_on_top;
-        if (ImGui::MenuItem(tr_always_on_top.c_str(), nullptr, atop)) {
+        if (ImGui::MenuItem(tr_always_on_top.c_str(), "F9", atop)) {
           settings.always_on_top = !atop;
           glfwSetWindowAttrib(window, GLFW_FLOATING, settings.always_on_top ? GLFW_TRUE : GLFW_FALSE);
           save_settings(settings_path, settings);
@@ -1619,7 +1637,7 @@ int run_app(int argc, char **argv) {
           appearance_open = true;
         }
         bool auto_scroll_menu = auto_scroll_enabled;
-        if (ImGui::MenuItem(tr_auto_scroll.c_str(), nullptr, auto_scroll_menu)) {
+        if (ImGui::MenuItem(tr_auto_scroll.c_str(), "Space", auto_scroll_menu)) {
           auto_scroll_enabled = !auto_scroll_menu;
           settings.auto_scroll = auto_scroll_enabled;
           save_settings(settings_path, settings);
