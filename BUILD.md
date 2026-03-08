@@ -19,8 +19,7 @@ Tested CMake version:
 2. Configure and build with your preferred GCC/Clang toolchain (examples below). Run the produced `bin/coollivecaptions` executable.
 3. To provide models for testing, you have several options:
     - Manual model: place model files directly into the per-user models folder (see above).
-      1. Download `april-english-dev-01110_en.april` model from: [https://abb128.github.io/april-asr/models.html](https://abb128.github.io/april-asr/models.html)
-      2. Place the model file into your models folder (created on first run or by installer):
+      1. Place the model file into your models folder (created on first run or by installer):
          - Windows: `%LOCALAPPDATA%/coollivecaptions/models`
          - macOS: `~/Library/Application Support/com.batterydie.coollivecaptions/models`
          - Linux: `~/.coollivecaptions/models`
@@ -30,6 +29,8 @@ Tested CMake version:
       3. Launch the app with the `--dev-manifest` argument; the app will fetch `http://localhost:8000/manifest.json` for testing.
     - Remote manifest: host your manifest on any reachable URL and use the same `--dev-manifest` flow when testing.
     - Quick local-only testing: manually copy model files into the models folder (no manifest or server required).
+
+> NOTICE: Our **own** models are under development and will be available soon. You can also use other models provided by abb128's april-asr: [https://abb128.github.io/april-asr/models.html](https://abb128.github.io/april-asr/models.html)
 
 ### Build: Windows (MSVC)
 
@@ -113,7 +114,9 @@ cmake --build build-macos-debug
 
 ### Run
 
-Place models in your per-user models folder (see above). Launch the app; choose Audio Source and Caption Model from the menubar. Captions appear in the main window and are saved to `{Documents}/Cool Live Captions/transcript-{timestamp}.md`.
+CMake creates a `bin` folder in the build directory (for example, `Cool-Live-Captions\build\bin\coollivecaptions.exe`). Run the executable to start the app.
+
+You can also run it from the command line to view logs and pass arguments such as `--dev-manifest` for testing.
 
 ## Model Management
 
