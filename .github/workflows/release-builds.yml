@@ -491,7 +491,7 @@ jobs:
       - name: Collect Debian package
         run: |
           src=$(ls -1 build-deb/*.deb | head -n 1)
-          dest="build/cool-live-captions-deb-${RELEASE_VERSION}-amd64.deb"
+          dest="build/cool-live-captions-${RELEASE_VERSION}-amd64.deb"
           mkdir -p build
           if [ -z "${src}" ]; then
             echo "Debian package not found in build-deb"
@@ -502,12 +502,12 @@ jobs:
       - name: Upload Debian artifact
         uses: actions/upload-artifact@v4
         with:
-          name: cool-live-captions-deb-${{ env.RELEASE_VERSION }}-amd64
-          path: build/cool-live-captions-deb-${{ env.RELEASE_VERSION }}-amd64.deb
+          name: cool-live-captions-${{ env.RELEASE_VERSION }}-amd64
+          path: build/cool-live-captions-${{ env.RELEASE_VERSION }}-amd64.deb
 
       - name: Publish GitHub Release asset (Debian)
         uses: softprops/action-gh-release@v2
         with:
-          files: build/cool-live-captions-deb-${{ env.RELEASE_VERSION }}-amd64.deb
+          files: build/cool-live-captions-${{ env.RELEASE_VERSION }}-amd64.deb
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
