@@ -3,7 +3,7 @@
   <string id="menu.settings">Paramètres</string>
   <string id="menu.help">Aide</string>
   <string id="menu.localization">Langue</string>
-  <string id="modal.caption_model_required">Aucun modèle de sous-titres trouvé. Voulez-vous télécharger un modèle maintenant ?\n\nAvertissement : Les sous-titres peuvent ne pas être précis à 100 %.</string>
+  <string id="modal.caption_model_required">Aucun modèle de sous-titres trouvé. Voulez-vous télécharger un modèle maintenant ?\n\nAvertissement : Les sous-titres peuvent ne pas être précis à 100 %. Veuillez ne pas vous y fier à des fins critiques.</string>
   <string id="menu.always_on_top">Toujours au dessus</string>
   <string id="menu.auto_check_updates">Vérifier automatiquement les mises à jour</string>
   <string id="menu.audio_sources">Sources audio</string>
@@ -30,7 +30,7 @@
   <string id="dialog.yes">Oui</string>
   <string id="dialog.no">Non</string>
   <string id="modal.caption_model_required_title">Modèle requis</string>
-  <string id="modal.caption_model_required_text">Aucun modèle de sous-titres trouvé. Voulez-vous télécharger un modèle maintenant ?\n\nAvertissement : Les sous-titres peuvent ne pas être précis à 100 %.</string>
+  <string id="modal.caption_model_required_text">Aucun modèle de sous-titres trouvé. Voulez-vous télécharger un modèle maintenant ?\n\nAvertissement : Les sous-titres peuvent ne pas être précis à 100 %. Veuillez ne pas vous y fier à des fins critiques.</string>
   <string id="about.tagline">Application de sous-titrage en direct open-source</string>
   <string id="appearance.caption_colors">Couleurs des sous-titres</string>
   <string id="appearance.text">Texte</string>
@@ -69,12 +69,19 @@
   <string id="model.source_local">Local</string>
   <string id="modal.import_caption_model_title">Importer un modèle</string>
   <string id="import.select_model_file">Sélectionnez un fichier de modèle à importer (.april)</string>
+  <string id="import.back">Retour</string>
+  <string id="import.forward">Suivant</string>
   <string id="import.go">Aller</string>
   <string id="import.path_not_found">Chemin introuvable.</string>
   <string id="import.up">Haut</string>
   <string id="import.no_directory_selected">Aucun répertoire sélectionné.</string>
   <string id="import.import_btn">Importer</string>
   <string id="import.cancel">Annuler</string>
+  <string id="import.sidebar_home">Accueil</string>
+  <string id="import.sidebar_documents">Documents</string>
+  <string id="import.sidebar_downloads">Téléchargements</string>
+  <string id="import.sidebar_desktop">Bureau</string>
+  <string id="import.sidebar_root">Racine</string>
   <string id="menu.section_system">Système</string>
   <string id="dialog.close">Fermer</string>
   <string id="dialog.ok">OK</string>

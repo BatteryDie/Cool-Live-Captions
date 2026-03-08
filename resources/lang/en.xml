@@ -4,7 +4,7 @@
   <string id="menu.settings">Settings</string>
   <string id="menu.help">Help</string>
   <string id="menu.localization">Language</string>
-  <string id="modal.caption_model_required">No caption model(s) found. Would you like to download a caption model(s) now?\n\nDisclaimer: The captions may not be 100% accurate.</string>
+  <string id="modal.caption_model_required">No caption model(s) found. Would you like to download a caption model(s) now?\n\nDisclaimer: The captions may not be 100% accurate. Please do not rely on it for critical purposes.</string>
   <string id="menu.always_on_top">Always On Top</string>
   <string id="menu.auto_check_updates">Automatically Check for Updates</string>
   <string id="menu.audio_sources">Audio Sources</string>
@@ -31,7 +31,7 @@
   <string id="dialog.yes">Yes</string>
   <string id="dialog.no">No</string>
   <string id="modal.caption_model_required_title">Caption Model Required</string>
-  <string id="modal.caption_model_required_text">No caption model(s) found. Would you like to download a caption model(s) now?\n\nDisclaimer: The captions may not be 100% accurate.</string>
+  <string id="modal.caption_model_required_text">No caption model(s) found. Would you like to download a caption model(s) now?\n\nDisclaimer: The captions may not be 100% accurate. Please do not rely on it for critical purposes.</string>
   <string id="about.tagline">FOSS live caption desktop application</string>
   <string id="appearance.caption_colors">Caption Colors</string>
   <string id="appearance.text">Text</string>
@@ -70,12 +70,19 @@
   <string id="model.source_local">Local</string>
   <string id="modal.import_caption_model_title">Import Caption Model</string>
   <string id="import.select_model_file">Select a model file to import (.april)</string>
+  <string id="import.back">Back</string>
+  <string id="import.forward">Forward</string>
   <string id="import.go">Go</string>
   <string id="import.path_not_found">Path not found.</string>
   <string id="import.up">Up</string>
   <string id="import.no_directory_selected">No directory selected.</string>
   <string id="import.import_btn">Import</string>
   <string id="import.cancel">Cancel</string>
+  <string id="import.sidebar_home">Home</string>
+  <string id="import.sidebar_documents">Documents</string>
+  <string id="import.sidebar_downloads">Downloads</string>
+  <string id="import.sidebar_desktop">Desktop</string>
+  <string id="import.sidebar_root">Root</string>
   <string id="menu.section_system">System</string>
   <string id="dialog.close">Close</string>
   <string id="dialog.ok">OK</string>

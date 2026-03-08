@@ -13,7 +13,7 @@ Cool Live Captions is a free and open source live caption desktop application th
 
 Windows and Linux are currently supported. macOS is coming soon. For FAQs and details, please see the [Wiki page](https://github.com/batterydie/cool-live-captions/wiki).
 
-> Disclaimer: Cool Live Captions is experimental and captions may not be 100% accurate.
+> Disclaimer: Cool Live Captions is experimental and captions may not be 100% accurate. Please do not rely on it for critical purposes.
 
 ## Screenshot
 

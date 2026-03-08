@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   windows-release:
-    runs-on: windows-latest
+    runs-on: windows-2025
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -195,7 +195,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   linux-release-appimage:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -250,34 +250,30 @@ jobs:
           if [ -d "${ROOT_DIR}/resources/profanity" ]; then
             cp -r "${ROOT_DIR}/resources/profanity" "${APPDIR}/usr/bin/"
           fi
-          if [ -d "${ROOT_DIR}/resources/dictionaries/lang" ]; then
-            mkdir -p "${APPDIR}/usr/bin/resources"
-              # Bundle profanity lists (prefer build output resources if available)
-              if [ -d "${BUILD_DIR}/bin/resources/profanity" ]; then
-                cp -r "${BUILD_DIR}/bin/resources/profanity" "${APPDIR}/usr/bin/"
-              elif [ -d "${ROOT_DIR}/resources/profanity" ]; then
-                cp -r "${ROOT_DIR}/resources/profanity" "${APPDIR}/usr/bin/"
-              fi
-              # Place language resources where the runtime looks for them (next to the binary).
-              if [ -d "${BUILD_DIR}/bin/resources/lang" ]; then
-                mkdir -p "${APPDIR}/usr/bin/resources" "${APPDIR}/usr/bin/lang"
-                cp -r "${BUILD_DIR}/bin/resources/lang/." "${APPDIR}/usr/bin/resources/"
-                cp -r "${BUILD_DIR}/bin/resources/lang/." "${APPDIR}/usr/bin/lang/"
-              elif [ -d "${ROOT_DIR}/resources/lang" ]; then
-                mkdir -p "${APPDIR}/usr/bin/resources" "${APPDIR}/usr/bin/lang"
-                cp -r "${ROOT_DIR}/resources/lang/." "${APPDIR}/usr/bin/resources/"
-                cp -r "${ROOT_DIR}/resources/lang/." "${APPDIR}/usr/bin/lang/"
-              fi
-              # Also copy resources into shared and top-level resource dirs for AppImage
-              if [ -d "${BUILD_DIR}/bin/resources/lang" ]; then
-                mkdir -p "${APPDIR}/usr/share/coollivecaptions/resources" "${APPDIR}/resources"
-                cp -r "${BUILD_DIR}/bin/resources/lang/." "${APPDIR}/usr/share/coollivecaptions/resources/"
-                cp -r "${BUILD_DIR}/bin/resources/lang/." "${APPDIR}/resources/"
-              elif [ -d "${ROOT_DIR}/resources/lang" ]; then
-                mkdir -p "${APPDIR}/usr/share/coollivecaptions/resources" "${APPDIR}/resources"
-                cp -r "${ROOT_DIR}/resources/lang/." "${APPDIR}/usr/share/coollivecaptions/resources/"
-                cp -r "${ROOT_DIR}/resources/lang/." "${APPDIR}/resources/"
-              fi
+          # Bundle profanity lists (prefer build output resources if available)
+          if [ -d "${BUILD_DIR}/bin/resources/profanity" ]; then
+            cp -r "${BUILD_DIR}/bin/resources/profanity" "${APPDIR}/usr/bin/"
+          elif [ -d "${ROOT_DIR}/resources/profanity" ]; then
+            cp -r "${ROOT_DIR}/resources/profanity" "${APPDIR}/usr/bin/"
+          fi
+
+          LANG_SRC=""
+          if [ -d "${BUILD_DIR}/bin/resources/lang" ]; then
+            LANG_SRC="${BUILD_DIR}/bin/resources/lang"
+          elif [ -d "${ROOT_DIR}/resources/lang" ]; then
+            LANG_SRC="${ROOT_DIR}/resources/lang"
+          fi
+
+          if [ -n "${LANG_SRC}" ]; then
+            # Place language resources where the runtime looks for them (next to the binary).
+            mkdir -p "${APPDIR}/usr/bin/lang" "${APPDIR}/usr/bin/resources/lang"
+            cp -r "${LANG_SRC}/." "${APPDIR}/usr/bin/lang/"
+            cp -r "${LANG_SRC}/." "${APPDIR}/usr/bin/resources/lang/"
+
+            # Also copy resources into shared and top-level resource dirs for AppImage
+            mkdir -p "${APPDIR}/usr/share/coollivecaptions/resources/lang" "${APPDIR}/resources/lang"
+            cp -r "${LANG_SRC}/." "${APPDIR}/usr/share/coollivecaptions/resources/lang/"
+            cp -r "${LANG_SRC}/." "${APPDIR}/resources/lang/"
           fi
 
           cat > "${DESKTOP_FILE}" <<EOF
@@ -355,7 +351,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   linux-release-deb:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
