@@ -789,7 +789,11 @@ int run_app(int argc, char **argv) {
   }
 
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
+#if defined(__APPLE__)
+  glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+  glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
+#endif
   glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
   glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
 #if defined(__linux__) && !defined(__APPLE__)
@@ -821,7 +825,11 @@ int run_app(int argc, char **argv) {
   io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
   ImGui_ImplGlfw_InitForOpenGL(window, true);
+#if defined(__APPLE__)
+  ImGui_ImplOpenGL3_Init("#version 150");
+#else
   ImGui_ImplOpenGL3_Init("#version 130");
+#endif
 
   std::filesystem::path exe_path;
 #if defined(_WIN32)
