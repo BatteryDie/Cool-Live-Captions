@@ -122,15 +122,22 @@ set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 set(CURL_DISABLE_TESTS ON CACHE BOOL "" FORCE)
 set(HTTP_ONLY ON CACHE BOOL "" FORCE)
 
-# On Windows use Schannel; on Unix-like systems enable OpenSSL so HTTPS works.
+# Use the platform TLS backend where available so builds do not depend on
+# external OpenSSL installs on macOS or Windows.
 if(WIN32)
   set(CURL_USE_OPENSSL OFF CACHE BOOL "" FORCE)
+  set(CURL_USE_SECTRANSP OFF CACHE BOOL "" FORCE)
   set(CURL_USE_SCHANNEL ON CACHE BOOL "" FORCE)
   # Avoid using system certificate bundles on Windows build here.
   set(CURL_CA_BUNDLE "none" CACHE STRING "" FORCE)
   set(CURL_CA_PATH "none" CACHE STRING "" FORCE)
+elseif(APPLE)
+  set(CURL_USE_OPENSSL OFF CACHE BOOL "" FORCE)
+  set(CURL_USE_SECTRANSP ON CACHE BOOL "" FORCE)
+  set(CURL_USE_SCHANNEL OFF CACHE BOOL "" FORCE)
 else()
   set(CURL_USE_OPENSSL ON CACHE BOOL "" FORCE)
+  set(CURL_USE_SECTRANSP OFF CACHE BOOL "" FORCE)
   set(CURL_USE_SCHANNEL OFF CACHE BOOL "" FORCE)
 endif()
 FetchContent_Declare(curl

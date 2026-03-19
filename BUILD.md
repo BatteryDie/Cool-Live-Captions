@@ -103,6 +103,8 @@ cmake --build build-linux-debug
 
 ### Build: macOS (Clang)
 
+macOS uses Apple's Secure Transport backend for the vendored libcurl build. You do not need a Homebrew OpenSSL install for the default build.
+
 ```bash
 cmake -S . -B build-macos-release -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build-macos-release
