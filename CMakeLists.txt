@@ -200,6 +200,11 @@ if(WIN32)
     ${SOURCES}
     ${PLATFORM_SOURCES}
   )
+elseif(APPLE)
+  add_executable(coollivecaptions MACOSX_BUNDLE
+    ${SOURCES}
+    ${PLATFORM_SOURCES}
+  )
 else()
   add_executable(coollivecaptions
     ${SOURCES}
@@ -208,6 +213,7 @@ else()
 endif()
 
 set(APP_ICON resources/icon.ico)
+set(APP_ICON_MAC resources/AppIcon.icns)
 set(APP_RC resources/app.rc)
 set(APP_VERSION_RC ${CMAKE_BINARY_DIR}/app_version.rc)
 set(APP_VERSION_MAJOR 1)
@@ -217,8 +223,15 @@ set(APP_VERSION_BUILD 0)
 set(APP_VERSION_STRING "${APP_VERSION_MAJOR}.${APP_VERSION_MINOR}.${APP_VERSION_PATCH}.${APP_VERSION_BUILD}")
 set(APP_COMPANY "Cool Live Captions")
 set(APP_COPYRIGHT "Copyright (c) 2026 Luca Jones")
+set(APP_BUNDLE_ID "com.batterydie.coollivecaptions")
+set(APP_MACOS_OUTPUT_NAME "coollivecaptions")
 
 configure_file(${CMAKE_SOURCE_DIR}/resources/app_version.rc.in ${APP_VERSION_RC} @ONLY)
+if(APPLE)
+  set(APP_MACOS_OUTPUT_NAME "Cool Live Captions")
+  set(MACOS_BUNDLE_PLIST ${CMAKE_BINARY_DIR}/Info.plist)
+  configure_file(${CMAKE_SOURCE_DIR}/resources/Info.plist.in ${MACOS_BUNDLE_PLIST} @ONLY)
+endif()
 
 if(WIN32)
   target_sources(coollivecaptions PRIVATE ${APP_VERSION_RC})
@@ -227,6 +240,11 @@ if(WIN32)
     target_sources(coollivecaptions PRIVATE ${APP_RC})
     set_source_files_properties(${APP_RC} PROPERTIES LANGUAGE RC)
   endif()
+endif()
+
+if(APPLE AND EXISTS "${CMAKE_SOURCE_DIR}/${APP_ICON_MAC}")
+  target_sources(coollivecaptions PRIVATE ${APP_ICON_MAC})
+  set_source_files_properties(${APP_ICON_MAC} PROPERTIES MACOSX_PACKAGE_LOCATION "Resources")
 endif()
 
 target_include_directories(coollivecaptions PRIVATE src include ${glad_SOURCE_DIR}/include ${glfw_SOURCE_DIR}/include)
@@ -258,8 +276,17 @@ endif()
 if(TARGET aprilasr)
   target_link_libraries(coollivecaptions PRIVATE aprilasr)
   target_include_directories(coollivecaptions PRIVATE ${april_asr_source_SOURCE_DIR}/include)
-  add_custom_command(TARGET coollivecaptions POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:aprilasr> $<TARGET_FILE_DIR:coollivecaptions>/)
+  if(APPLE)
+    add_custom_command(TARGET coollivecaptions POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:coollivecaptions>/../Frameworks
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        $<TARGET_FILE:aprilasr>
+        $<TARGET_FILE_DIR:coollivecaptions>/../Frameworks/
+      VERBATIM)
+  else()
+    add_custom_command(TARGET coollivecaptions POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:aprilasr> $<TARGET_FILE_DIR:coollivecaptions>/)
+  endif()
 elseif(APRIL_ASR_ROOT)
   target_include_directories(coollivecaptions PRIVATE ${APRIL_ASR_ROOT} ${APRIL_ASR_ROOT}/include)
   target_link_directories(coollivecaptions PRIVATE ${APRIL_ASR_ROOT}/lib)
@@ -272,12 +299,35 @@ elseif(APRIL_ASR_ROOT)
     set(APRIL_ASR_RUNTIME ${APRIL_ASR_ROOT}/lib/lib${APRIL_ASR_LIB_NAME}.so)
   endif()
   if(EXISTS ${APRIL_ASR_RUNTIME})
-    add_custom_command(TARGET coollivecaptions POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy_if_different
-        ${APRIL_ASR_RUNTIME}
-        $<TARGET_FILE_DIR:coollivecaptions>/
-      VERBATIM)
+    if(APPLE)
+      add_custom_command(TARGET coollivecaptions POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:coollivecaptions>/../Frameworks
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+          ${APRIL_ASR_RUNTIME}
+          $<TARGET_FILE_DIR:coollivecaptions>/../Frameworks/
+        VERBATIM)
+    else()
+      add_custom_command(TARGET coollivecaptions POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+          ${APRIL_ASR_RUNTIME}
+          $<TARGET_FILE_DIR:coollivecaptions>/
+        VERBATIM)
+    endif()
   endif()
+endif()
+
+if(APPLE)
+  set_target_properties(coollivecaptions PROPERTIES
+    BUILD_RPATH "@executable_path/../Frameworks"
+    INSTALL_RPATH "@executable_path/../Frameworks"
+    OUTPUT_NAME "${APP_MACOS_OUTPUT_NAME}"
+    MACOSX_BUNDLE_BUNDLE_NAME "Cool Live Captions"
+    MACOSX_BUNDLE_ICON_FILE "AppIcon.icns"
+    MACOSX_BUNDLE_GUI_IDENTIFIER "${APP_BUNDLE_ID}"
+    MACOSX_BUNDLE_BUNDLE_VERSION "${APP_VERSION_STRING}"
+    MACOSX_BUNDLE_SHORT_VERSION_STRING "${APP_VERSION_MAJOR}.${APP_VERSION_MINOR}.${APP_VERSION_PATCH}"
+    MACOSX_BUNDLE_INFO_PLIST "${MACOS_BUNDLE_PLIST}"
+  )
 endif()
 
 if(WIN32)
@@ -318,18 +368,44 @@ elseif(UNIX AND NOT APPLE)
         $<TARGET_FILE_DIR:coollivecaptions>/
       VERBATIM)
   endif()
+elseif(APPLE)
+  if(ONNXRUNTIME_ROOT)
+    set(ONNX_FRAMEWORK_DEST $<TARGET_FILE_DIR:coollivecaptions>/../Frameworks)
+    add_custom_command(TARGET coollivecaptions POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E make_directory ${ONNX_FRAMEWORK_DEST}
+      VERBATIM)
+
+    set(ONNX_RUNTIME_DYLIBS
+      libonnxruntime.dylib
+      libonnxruntime_providers_shared.dylib
+    )
+    foreach(onnx_dylib ${ONNX_RUNTIME_DYLIBS})
+      if(EXISTS ${ONNXRUNTIME_ROOT}/lib/${onnx_dylib})
+        add_custom_command(TARGET coollivecaptions POST_BUILD
+          COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            ${ONNXRUNTIME_ROOT}/lib/${onnx_dylib}
+            ${ONNX_FRAMEWORK_DEST}/
+          VERBATIM)
+      endif()
+    endforeach()
+  endif()
 endif()
 
 set_target_properties(coollivecaptions PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
+if(APPLE)
+  set(APP_RESOURCE_DIR $<TARGET_FILE_DIR:coollivecaptions>/../Resources)
+else()
+  set(APP_RESOURCE_DIR $<TARGET_FILE_DIR:coollivecaptions>/resources)
+endif()
+
 add_custom_command(TARGET coollivecaptions POST_BUILD
-  COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:coollivecaptions>/profanity
-  COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:coollivecaptions>/resources/profanity
+  COMMAND ${CMAKE_COMMAND} -E make_directory ${APP_RESOURCE_DIR}/profanity
   COMMAND ${CMAKE_COMMAND} -E copy_directory
     ${CMAKE_SOURCE_DIR}/resources/profanity
-    $<TARGET_FILE_DIR:coollivecaptions>/resources/profanity
-  COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:coollivecaptions>/resources/lang
+    ${APP_RESOURCE_DIR}/profanity
+  COMMAND ${CMAKE_COMMAND} -E make_directory ${APP_RESOURCE_DIR}/lang
   COMMAND ${CMAKE_COMMAND} -E copy_directory
     ${CMAKE_SOURCE_DIR}/resources/lang
-    $<TARGET_FILE_DIR:coollivecaptions>/resources/lang
+    ${APP_RESOURCE_DIR}/lang
   VERBATIM)

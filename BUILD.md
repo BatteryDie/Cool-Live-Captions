@@ -105,18 +105,29 @@ cmake --build build-linux-debug
 
 macOS uses Apple's Secure Transport backend for the vendored libcurl build. You do not need a Homebrew OpenSSL install for the default build.
 
+Known-good local setup (recommended):
+- Generator: `Unix Makefiles`
+- Build folder: `build-macos-makefiles`
+- App path: `build-macos-makefiles/bin/Cool Live Captions.app`
+
 ```bash
-cmake -S . -B build-macos-release -G Ninja -DCMAKE_BUILD_TYPE=Release
-cmake --build build-macos-release
+cmake -S . -B build-macos-makefiles -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release
+cmake --build build-macos-makefiles -j4
 ```
 ```bash
-cmake -S . -B build-macos-debug -G Ninja -DCMAKE_BUILD_TYPE=Debug
-cmake --build build-macos-debug
+cmake -S . -B build-macos-makefiles -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug
+cmake --build build-macos-makefiles -j4
 ```
 
 ### Run
 
 CMake creates a `bin` folder in the build directory (for example, `Cool-Live-Captions\build\bin\coollivecaptions.exe`). Run the executable to start the app.
+
+On macOS, launch the app bundle:
+
+```bash
+open "build-macos-makefiles/bin/Cool Live Captions.app"
+```
 
 You can also run it from the command line to view logs and pass arguments such as `--dev-manifest` for testing.
 
