@@ -11,6 +11,7 @@
   <string id="menu.desktop_audio">Desktop Audio</string>
   <string id="menu.microphone">Microphone</string>
   <string id="menu.select_application">Select Application</string>
+  <string id="menu.auto_selection">Auto Selection...</string>
   <string id="menu.caption_models">Caption Models</string>
   <string id="menu.model_manager">Model Manager...</string>
   <string id="menu.localization">Language</string>
@@ -98,4 +99,27 @@
   <string id="about.developer_fmt">Developer: %s</string>
   <string id="about.developer_name">Luca Jones</string>
   <string id="about.copyright">Copyright © 2026 Luca Jones</string>
+
+  <!-- Permission manager (macOS only) -->
+  <string id="menu.check_permissions">Check for Permission...</string>
+  <string id="perm.title">Permissions</string>
+  <string id="perm.description">Cool Live Captions requires the following permissions to function correctly. Click each row to request access or open System Settings.</string>
+  <string id="perm.status_granted">Granted</string>
+  <string id="perm.status_denied">Denied</string>
+  <string id="perm.status_not_determined">Not Asked</string>
+  <string id="perm.status_restricted">Restricted</string>
+  <string id="perm.status_unavailable">Not Available</string>
+  <string id="perm.file_folder">Files &amp; Folders</string>
+  <string id="perm.file_folder_desc">Required for importing and loading caption models from your home folder.</string>
+  <string id="perm.microphone">Microphone</string>
+  <string id="perm.microphone_desc">Required for capturing microphone audio to run live captions.</string>
+  <string id="perm.screen_system_audio">Screen &amp; System Audio Recording</string>
+  <string id="perm.screen_system_audio_desc">Required for capturing desktop and system audio to run live captions.</string>
+  <string id="perm.system_audio_only">System Audio Recording Only</string>
+  <string id="perm.system_audio_only_desc">Allows capturing system audio without recording the screen. Requires macOS 14 or later.</string>
+  <string id="perm.request_access">Request Access</string>
+  <string id="perm.open_settings">Open System Settings</string>
+  <string id="perm.done">Done</string>
+  <string id="perm.refresh">Refresh</string>
+</language>
 </language>

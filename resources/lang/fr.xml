@@ -10,6 +10,7 @@
   <string id="menu.desktop_audio">Audio du bureau</string>
   <string id="menu.microphone">Microphone</string>
   <string id="menu.select_application">Sélectionner une application</string>
+  <string id="menu.auto_selection">Sélection automatique...</string>
   <string id="menu.caption_models">Modèles de sous-titres</string>
   <string id="menu.model_manager">Gestionnaire de modèles...</string>
   <string id="menu.localization">Langue</string>
@@ -97,4 +98,26 @@
   <string id="about.developer_fmt">Développeur : %s</string>
   <string id="about.developer_name">Luca Jones</string>
   <string id="about.copyright">Copyright © 2026 Luca Jones</string>
+
+  <!-- Permission manager (macOS uniquement) -->
+  <string id="menu.check_permissions">Vérifier les autorisations...</string>
+  <string id="perm.title">Autorisations</string>
+  <string id="perm.description">Cool Live Captions nécessite les autorisations suivantes pour fonctionner correctement. Cliquez sur chaque ligne pour demander l'accès ou ouvrir les Réglages Système.</string>
+  <string id="perm.status_granted">Accordé</string>
+  <string id="perm.status_denied">Refusé</string>
+  <string id="perm.status_not_determined">Non demandé</string>
+  <string id="perm.status_restricted">Restreint</string>
+  <string id="perm.status_unavailable">Non disponible</string>
+  <string id="perm.file_folder">Fichiers et dossiers</string>
+  <string id="perm.file_folder_desc">Requis pour importer et charger des modèles depuis votre dossier personnel.</string>
+  <string id="perm.microphone">Microphone</string>
+  <string id="perm.microphone_desc">Requis pour capturer l'audio du microphone afin de pouvoir afficher les sous-titres en direct.</string>
+  <string id="perm.screen_system_audio">Enregistrement de l'écran et de l'audio système</string>
+  <string id="perm.screen_system_audio_desc">Nécessaire pour capturer l'audio du bureau et du système afin de pouvoir afficher les sous-titres en direct.</string>
+  <string id="perm.system_audio_only">Enregistrement de l'audio système uniquement</string>
+  <string id="perm.system_audio_only_desc">Permet de capturer l'audio système sans enregistrer l'écran. Nécessite macOS 14 ou ultérieur.</string>
+  <string id="perm.request_access">Demander l'accès</string>
+  <string id="perm.open_settings">Ouvrir les réglages système</string>
+  <string id="perm.done">Terminé</string>
+  <string id="perm.refresh">Actualiser</string>
 </language>

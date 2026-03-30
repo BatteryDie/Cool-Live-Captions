@@ -40,6 +40,7 @@
 using AudioBackend = AudioWin;
 #elif defined(__APPLE__)
 #include "audio_mac.h"
+#include "macos_permissions.h"
 using AudioBackend = AudioMac;
 #else
 #include "audio_linux.h"
@@ -871,7 +872,7 @@ int run_app(int argc, char **argv) {
   }
   LocaleManager locale;
   locale.load(exe_path, settings.language);
-  std::string tr_audio_sources, tr_desktop_audio, tr_microphone, tr_select_application;
+  std::string tr_audio_sources, tr_desktop_audio, tr_microphone, tr_select_application, tr_auto_selection;
   std::string tr_caption_models, tr_model_manager, tr_settings, tr_help;
   std::string tr_yes, tr_no, tr_caption_model_required_title, tr_caption_model_required_text;
   std::string tr_check_updates_now, tr_always_on_top, tr_full_screen, tr_appearance;
@@ -879,12 +880,23 @@ int run_app(int argc, char **argv) {
   std::string tr_documentation, tr_release_notes, tr_about;
   std::string tr_close, tr_update_check_wait, tr_update_failed_fmt, tr_update_yes_open_link, tr_update_cancel;
   std::string tr_update_up_to_date_fmt, tr_ok, tr_about_developer_fmt, tr_about_copyright;
+#if defined(__APPLE__)
+  std::string tr_check_permissions;
+  std::string tr_perm_title, tr_perm_description;
+  std::string tr_perm_status_granted, tr_perm_status_denied, tr_perm_status_not_determined;
+  std::string tr_perm_status_restricted, tr_perm_status_unavailable;
+  std::string tr_perm_file_folder, tr_perm_file_folder_desc;
+  std::string tr_perm_microphone, tr_perm_microphone_desc;
+  std::string tr_perm_system_audio_only, tr_perm_system_audio_only_desc;
+  std::string tr_perm_request_access, tr_perm_open_settings, tr_perm_done, tr_perm_refresh;
+#endif
 
   auto update_translations = [&]() {
     tr_audio_sources = locale.t("menu.audio_sources");
     tr_desktop_audio = locale.t("menu.desktop_audio");
     tr_microphone = locale.t("menu.microphone");
     tr_select_application = locale.t("menu.select_application");
+    tr_auto_selection = locale.t("menu.auto_selection");
     tr_caption_models = locale.t("menu.caption_models");
     tr_model_manager = locale.t("menu.model_manager");
     tr_settings = locale.t("menu.settings");
@@ -913,6 +925,26 @@ int run_app(int argc, char **argv) {
     tr_ok = locale.t("dialog.ok");
     tr_about_developer_fmt = locale.t("about.developer_fmt");
     tr_about_copyright = locale.t("about.copyright");
+#if defined(__APPLE__)
+    tr_check_permissions             = locale.t("menu.check_permissions");
+    tr_perm_title                    = locale.t("perm.title");
+    tr_perm_description              = locale.t("perm.description");
+    tr_perm_status_granted           = locale.t("perm.status_granted");
+    tr_perm_status_denied            = locale.t("perm.status_denied");
+    tr_perm_status_not_determined    = locale.t("perm.status_not_determined");
+    tr_perm_status_restricted        = locale.t("perm.status_restricted");
+    tr_perm_status_unavailable       = locale.t("perm.status_unavailable");
+    tr_perm_file_folder              = locale.t("perm.file_folder");
+    tr_perm_file_folder_desc         = locale.t("perm.file_folder_desc");
+    tr_perm_microphone               = locale.t("perm.microphone");
+    tr_perm_microphone_desc          = locale.t("perm.microphone_desc");
+    tr_perm_system_audio_only        = locale.t("perm.system_audio_only");
+    tr_perm_system_audio_only_desc   = locale.t("perm.system_audio_only_desc");
+    tr_perm_request_access           = locale.t("perm.request_access");
+    tr_perm_open_settings            = locale.t("perm.open_settings");
+    tr_perm_done                     = locale.t("perm.done");
+    tr_perm_refresh                  = locale.t("perm.refresh");
+#endif
   };
   update_translations();
   if (settings.window_width > 0 && settings.window_height > 0) {
@@ -965,9 +997,15 @@ int run_app(int argc, char **argv) {
   AprilAsrEngine engine;
   AudioBackend audio;
   AudioSourceKind audio_source = AudioSourceKind::Desktop;
-#if (defined(__linux__) && !defined(__APPLE__)) || defined(_WIN32)
+#if defined(__APPLE__)
+  audio_source = AudioSourceKind::Application;
+#endif
+#if (defined(__linux__) && !defined(__APPLE__)) || defined(_WIN32) || defined(__APPLE__)
   std::vector<AudioBackend::AppInfo> app_list;
   std::optional<AudioBackend::AppInfo> selected_app;
+  bool audio_sources_menu_was_open = false;
+  bool auto_select_pending = false;
+  double auto_select_next_check = 0.0;
 #endif
   ProfanityFilter profanity;
   app_update::UpdateState update_state;
@@ -1059,17 +1097,25 @@ int run_app(int argc, char **argv) {
       audio.set_target_node(std::nullopt);
     }
 #else
-    int src = audio_source == AudioSourceKind::Desktop ? 0 : 1;
+    int src = 1;
     std::string source_label;
-    if (audio_source == AudioSourceKind::Desktop) {
-      source_label = "Desktop";
-    } else if (audio_source == AudioSourceKind::Microphone) {
+    if (audio_source == AudioSourceKind::Microphone) {
+      src = 1;
       source_label = "Microphone";
     } else {
+      src = 2;
       source_label = "Application";
     }
-#if defined(__linux__) && !defined(__APPLE__)
+#if defined(__linux__) && !defined(__APPLE__) || defined(__APPLE__)
     if (audio_source == AudioSourceKind::Application) {
+#if defined(__APPLE__)
+      if (!selected_app) {
+        app_list = audio.list_applications();
+        if (!app_list.empty()) {
+          selected_app = app_list.front();
+        }
+      }
+#endif
       if (!selected_app) {
         log_error("No application selected for audio capture.");
         return;
@@ -1088,6 +1134,20 @@ int run_app(int argc, char **argv) {
     audio.start(engine.sample_rate(), src, [&](const std::vector<float> &samples) { engine.push_audio(samples); });
   };
 
+#if (defined(__linux__) && !defined(__APPLE__)) || defined(_WIN32) || defined(__APPLE__)
+  auto try_auto_select_application = [&]() -> bool {
+    app_list = audio.list_applications();
+    if (app_list.empty()) {
+      return false;
+    }
+    selected_app = app_list.front();
+    audio_source = AudioSourceKind::Application;
+    audio.stop();
+    start_audio();
+    return true;
+  };
+#endif
+
   if (engine_ready) {
     start_audio();
   }
@@ -1099,6 +1159,19 @@ int run_app(int argc, char **argv) {
   bool appearance_open = false;
   bool appearance_was_open = false;
   bool about_open = false;
+#if defined(__APPLE__)
+  MacPermissionState perm_state = macos_check_permissions();
+  bool perm_window_open = false;
+  // Open the permission window on first launch if any permission is not fully granted.
+  auto perm_needs_attention = [](const MacPermissionState &s) {
+    return s.file_folder         != MacPermissionStatus::Granted ||
+           s.microphone          != MacPermissionStatus::Granted ||
+           s.system_audio_only   != MacPermissionStatus::Granted;
+  };
+  if (perm_needs_attention(perm_state)) {
+    perm_window_open = true;
+  }
+#endif
   bool fullscreen_enabled = false;
   bool fullscreen_key_down = false;
   bool spacebar_key_down = false;
@@ -1338,6 +1411,17 @@ int run_app(int argc, char **argv) {
       caption.append(filtered);
       writer.write_line(filtered);
     }
+
+#if (defined(__linux__) && !defined(__APPLE__)) || defined(_WIN32) || defined(__APPLE__)
+    if (auto_select_pending && glfwGetTime() >= auto_select_next_check) {
+      if (try_auto_select_application()) {
+        auto_select_pending = false;
+        log_info("Auto selection found an app with active audio output.");
+      } else {
+        auto_select_next_check = glfwGetTime() + 5.0;
+      }
+    }
+#endif
     auto partial_raw = engine.peek_partial();
     std::optional<std::string> partial_filtered;
     if (partial_raw && !partial_raw->empty()) {
@@ -1514,34 +1598,56 @@ int run_app(int argc, char **argv) {
     }
 
     if (ImGui::BeginMainMenuBar()) {
-      if (ImGui::BeginMenu(tr_audio_sources.c_str())) {
+      bool audio_sources_menu_open = ImGui::BeginMenu(tr_audio_sources.c_str());
+      if (audio_sources_menu_open) {
+#if (defined(__linux__) && !defined(__APPLE__)) || defined(_WIN32) || defined(__APPLE__)
+        if (!audio_sources_menu_was_open) {
+          app_list = audio.list_applications();
+        }
+#endif
+#if !defined(__APPLE__)
         if (ImGui::MenuItem(tr_desktop_audio.c_str(), nullptr, audio_source == AudioSourceKind::Desktop)) {
           audio_source = AudioSourceKind::Desktop;
 #if (defined(__linux__) && !defined(__APPLE__)) || defined(_WIN32)
           selected_app.reset();
+          auto_select_pending = false;
 #endif
           audio.stop();
           start_audio();
         }
+#endif
         if (ImGui::MenuItem(tr_microphone.c_str(), nullptr, audio_source == AudioSourceKind::Microphone)) {
           audio_source = AudioSourceKind::Microphone;
-#if (defined(__linux__) && !defined(__APPLE__)) || defined(_WIN32)
+#if (defined(__linux__) && !defined(__APPLE__)) || defined(_WIN32) || defined(__APPLE__)
           selected_app.reset();
+          auto_select_pending = false;
 #endif
           audio.stop();
           start_audio();
         }
-#if (defined(__linux__) && !defined(__APPLE__)) || defined(_WIN32)
+#if (defined(__linux__) && !defined(__APPLE__)) || defined(_WIN32) || defined(__APPLE__)
+        if (ImGui::MenuItem(tr_auto_selection.c_str(), nullptr, auto_select_pending)) {
+          if (auto_select_pending) {
+            auto_select_pending = false;
+            log_info("Auto selection stopped.");
+          } else if (try_auto_select_application()) {
+            auto_select_pending = false;
+          } else {
+            auto_select_pending = true;
+            auto_select_next_check = glfwGetTime();
+            selected_app.reset();
+            audio_source = AudioSourceKind::Application;
+            audio.stop();
+            log_info("No app audio found yet. Auto selection is enabled and will retry every 5 seconds.");
+          }
+        }
         std::string select_app_label = tr_select_application;
         if (selected_app && !selected_app->label.empty()) {
           select_app_label += " (" + selected_app->label + ")";
         }
         if (ImGui::BeginMenu(select_app_label.c_str())) {
-          static double app_list_last_refresh = 0.0;
-          const double now = ImGui::GetTime();
-          if (ImGui::IsWindowAppearing() && (now - app_list_last_refresh) >= 2.0) {
+          if (ImGui::IsWindowAppearing()) {
             app_list = audio.list_applications();
-            app_list_last_refresh = now;
           }
           if (app_list.empty()) {
             ImGui::TextDisabled("No applications playing audio");
@@ -1551,6 +1657,7 @@ int run_app(int argc, char **argv) {
             if (ImGui::MenuItem(app.label.c_str(), nullptr, selected)) {
               selected_app = app;
               audio_source = AudioSourceKind::Application;
+              auto_select_pending = false;
               audio.stop();
               start_audio();
             }
@@ -1560,6 +1667,9 @@ int run_app(int argc, char **argv) {
 #endif
         ImGui::EndMenu();
       }
+#if (defined(__linux__) && !defined(__APPLE__)) || defined(_WIN32) || defined(__APPLE__)
+  audio_sources_menu_was_open = audio_sources_menu_open;
+#endif
       if (ImGui::BeginMenu(tr_caption_models.c_str())) {
       if (ImGui::MenuItem(tr_model_manager.c_str())) {
           model_manager.sync_installed_with_disk();
@@ -1626,6 +1736,12 @@ int run_app(int argc, char **argv) {
         if (ImGui::MenuItem(tr_check_updates_now.c_str())) {
           app_update::start_update_check(update_state, true);
         }
+#if defined(__APPLE__)
+        if (ImGui::MenuItem(tr_check_permissions.c_str())) {
+          perm_state = macos_check_permissions();
+          perm_window_open = true;
+        }
+#endif
         ImGui::Separator();
 
         ImGui::TextDisabled(locale.t("menu.section_windows").c_str());
@@ -1758,6 +1874,126 @@ int run_app(int argc, char **argv) {
     if (about_open && !about_keep_open) {
       about_open = false;
     }
+
+#if defined(__APPLE__)
+    if (perm_window_open) {
+      ImGui::SetNextWindowPos(
+        ImVec2(io.DisplaySize.x * 0.5f, io.DisplaySize.y * 0.5f),
+        ImGuiCond_Appearing, ImVec2(0.5f, 0.5f));
+      ImGui::SetNextWindowSizeConstraints(ImVec2(520.0f, 0.0f), ImVec2(700.0f, FLT_MAX));
+      ImGui::Begin(tr_perm_title.c_str(), &perm_window_open,
+                   ImGuiWindowFlags_AlwaysAutoResize | ImGuiWindowFlags_NoCollapse);
+
+      ImGui::PushTextWrapPos(0.0f);
+      ImGui::TextWrapped("%s", tr_perm_description.c_str());
+      ImGui::PopTextWrapPos();
+      ImGui::Spacing();
+      ImGui::Separator();
+      ImGui::Spacing();
+
+      auto status_colour = [](MacPermissionStatus s) -> ImVec4 {
+        switch (s) {
+          case MacPermissionStatus::Granted:       return ImVec4(0.2f, 0.8f, 0.2f, 1.0f);
+          case MacPermissionStatus::Denied:        return ImVec4(0.9f, 0.2f, 0.2f, 1.0f);
+          case MacPermissionStatus::Restricted:    return ImVec4(0.9f, 0.6f, 0.1f, 1.0f);
+          case MacPermissionStatus::NotDetermined: return ImVec4(0.8f, 0.8f, 0.2f, 1.0f);
+          default:                                 return ImVec4(0.5f, 0.5f, 0.5f, 1.0f);
+        }
+      };
+      auto status_label = [&](MacPermissionStatus s) -> const std::string & {
+        switch (s) {
+          case MacPermissionStatus::Granted:       return tr_perm_status_granted;
+          case MacPermissionStatus::Denied:        return tr_perm_status_denied;
+          case MacPermissionStatus::Restricted:    return tr_perm_status_restricted;
+          case MacPermissionStatus::NotDetermined: return tr_perm_status_not_determined;
+          default:                                 return tr_perm_status_unavailable;
+        }
+      };
+
+      auto perm_row = [&](const std::string &name,
+                          const std::string &desc,
+                          MacPermissionStatus status,
+                          const std::string *primary_btn_label,
+                          const std::string *secondary_btn_label,
+                          const char *row_id) -> int {
+        int clicked = 0;
+        ImGui::PushID(row_id);
+        ImGui::PushStyleColor(ImGuiCol_Text, status_colour(status));
+        ImGui::TextUnformatted(("[" + status_label(status) + "]").c_str());
+        ImGui::PopStyleColor();
+        ImGui::SameLine();
+        ImGui::TextUnformatted(name.c_str());
+        ImGui::PushTextWrapPos(0.0f);
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.65f, 0.65f, 0.65f, 1.0f));
+        ImGui::TextWrapped("  %s", desc.c_str());
+        ImGui::PopStyleColor();
+        ImGui::PopTextWrapPos();
+        if (status != MacPermissionStatus::Granted &&
+            status != MacPermissionStatus::Restricted &&
+            status != MacPermissionStatus::Unavailable) {
+          if (primary_btn_label && ImGui::SmallButton(primary_btn_label->c_str())) {
+            clicked = 1;
+          }
+          if (secondary_btn_label) {
+            ImGui::SameLine();
+            if (ImGui::SmallButton(secondary_btn_label->c_str())) {
+              clicked = 2;
+            }
+          }
+        }
+        ImGui::Spacing();
+        ImGui::PopID();
+        return clicked;
+      };
+
+      if (perm_row(tr_perm_file_folder, tr_perm_file_folder_desc,
+                   perm_state.file_folder, &tr_perm_open_settings, nullptr, "ff") == 1) {
+        macos_open_files_settings();
+      }
+      ImGui::Separator();
+      ImGui::Spacing();
+
+      if (perm_row(tr_perm_microphone, tr_perm_microphone_desc,
+                   perm_state.microphone, &tr_perm_request_access, nullptr, "mic") == 1) {
+        macos_request_microphone([&perm_state](bool /*granted*/) {
+          perm_state = macos_check_permissions();
+        });
+      }
+      ImGui::Separator();
+      ImGui::Spacing();
+
+      {
+        int action = perm_row(tr_perm_system_audio_only, tr_perm_system_audio_only_desc,
+                              perm_state.system_audio_only,
+                              &tr_perm_request_access,
+                              &tr_perm_open_settings,
+                              "sao");
+        if (action == 1) {
+          macos_request_audio_capture([&perm_state](bool /*granted*/) {
+            perm_state = macos_check_permissions();
+          });
+        } else if (action == 2) {
+          macos_open_audio_capture_settings();
+        }
+      }
+
+      ImGui::Separator();
+      ImGui::Spacing();
+
+      float btn_w = 110.0f;
+      float total_w = btn_w * 2.0f + ImGui::GetStyle().ItemSpacing.x;
+      ImGui::SetCursorPosX((ImGui::GetContentRegionAvail().x - total_w) * 0.5f + ImGui::GetCursorPosX());
+      if (ImGui::Button(tr_perm_refresh.c_str(), ImVec2(btn_w, 0))) {
+        perm_state = macos_check_permissions();
+      }
+      ImGui::SameLine();
+      if (ImGui::Button(tr_perm_done.c_str(), ImVec2(btn_w, 0))) {
+        perm_window_open = false;
+      }
+
+      ImGui::End();
+    }
+#endif // __APPLE__
 
     if (appearance_open) {
       if (!appearance_was_open) {

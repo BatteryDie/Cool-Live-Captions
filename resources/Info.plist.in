@@ -22,11 +22,15 @@
   <string>@APP_VERSION_MAJOR@.@APP_VERSION_MINOR@.@APP_VERSION_PATCH@</string>
   <key>CFBundleVersion</key>
   <string>@APP_VERSION_STRING@</string>
+  <key>NSHumanReadableCopyright</key>
+  <string>@APP_COPYRIGHT@</string>
   <key>LSMinimumSystemVersion</key>
-  <string>12.0</string>
+  <string>14.4</string>
   <key>NSHighResolutionCapable</key>
   <true/>
   <key>NSMicrophoneUsageDescription</key>
   <string>Cool Live Captions uses microphone audio to generate live captions on-device.</string>
+  <key>NSAudioCaptureUsageDescription</key>
+  <string>Cool Live Captions uses system audio capture to generate live captions on-device.</string>
 </dict>
 </plist>

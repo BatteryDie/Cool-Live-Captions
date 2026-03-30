@@ -33,6 +33,7 @@ endif()
 
 if(APPLE)
   set(CMAKE_OSX_ARCHITECTURES "arm64" CACHE STRING "Build for Apple Silicon only" FORCE)
+  set(CMAKE_OSX_DEPLOYMENT_TARGET "14.4" CACHE STRING "Minimum supported macOS version" FORCE)
 endif()
 
 set(ONNX_VERSION "1.23.2")
@@ -190,7 +191,10 @@ set(PLATFORM_SOURCES)
 if(WIN32)
   list(APPEND PLATFORM_SOURCES src/audio_win.cpp include/audio_win.h)
 elseif(APPLE)
-  list(APPEND PLATFORM_SOURCES src/audio_mac.cpp include/audio_mac.h)
+  list(APPEND PLATFORM_SOURCES
+    src/audio_mac.mm include/audio_mac.h 
+    src/macos_permissions.mm include/macos_permissions.h
+  )
 else()
   list(APPEND PLATFORM_SOURCES src/audio_linux.cpp include/audio_linux.h)
 endif()
@@ -214,6 +218,9 @@ endif()
 
 set(APP_ICON resources/icon.ico)
 set(APP_ICON_MAC resources/AppIcon.icns)
+set(APP_CREDITS_RTF resources/Credits.rtf)
+set(APP_CREDITS_RTF_EN resources/en.lproj/Credits.rtf)
+set(APP_CREDITS_RTF_FR resources/fr.lproj/Credits.rtf)
 set(APP_RC resources/app.rc)
 set(APP_VERSION_RC ${CMAKE_BINARY_DIR}/app_version.rc)
 set(APP_VERSION_MAJOR 1)
@@ -247,6 +254,21 @@ if(APPLE AND EXISTS "${CMAKE_SOURCE_DIR}/${APP_ICON_MAC}")
   set_source_files_properties(${APP_ICON_MAC} PROPERTIES MACOSX_PACKAGE_LOCATION "Resources")
 endif()
 
+if(APPLE AND EXISTS "${CMAKE_SOURCE_DIR}/${APP_CREDITS_RTF}")
+  target_sources(coollivecaptions PRIVATE ${APP_CREDITS_RTF})
+  set_source_files_properties(${APP_CREDITS_RTF} PROPERTIES MACOSX_PACKAGE_LOCATION "Resources")
+endif()
+
+if(APPLE AND EXISTS "${CMAKE_SOURCE_DIR}/${APP_CREDITS_RTF_EN}")
+  target_sources(coollivecaptions PRIVATE ${APP_CREDITS_RTF_EN})
+  set_source_files_properties(${APP_CREDITS_RTF_EN} PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/en.lproj")
+endif()
+
+if(APPLE AND EXISTS "${CMAKE_SOURCE_DIR}/${APP_CREDITS_RTF_FR}")
+  target_sources(coollivecaptions PRIVATE ${APP_CREDITS_RTF_FR})
+  set_source_files_properties(${APP_CREDITS_RTF_FR} PROPERTIES MACOSX_PACKAGE_LOCATION "Resources/fr.lproj")
+endif()
+
 target_include_directories(coollivecaptions PRIVATE src include ${glad_SOURCE_DIR}/include ${glfw_SOURCE_DIR}/include)
 target_compile_definitions(coollivecaptions PRIVATE
   APP_VERSION_STRING="${APP_VERSION_STRING}"
@@ -259,6 +281,15 @@ target_compile_definitions(coollivecaptions PRIVATE
 )
 
 target_link_libraries(coollivecaptions PRIVATE imgui::imgui glfw glad CURL::libcurl)
+if(APPLE)
+  target_link_libraries(coollivecaptions PRIVATE
+    "-framework CoreAudio"
+    "-framework AVFoundation"
+    "-framework CoreGraphics"
+    "-framework ScreenCaptureKit"
+    "-framework AppKit"
+  )
+endif()
 if(PIPEWIRE_FOUND)
   target_link_libraries(coollivecaptions PRIVATE PkgConfig::PIPEWIRE)
   target_compile_definitions(coollivecaptions PRIVATE HAVE_PIPEWIRE)

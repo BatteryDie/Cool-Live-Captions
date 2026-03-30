@@ -31,14 +31,14 @@ Please see [BUILD.md](BUILD.md) for build instructions.
 | --- | --- | --- |
 | Dear ImGui | GUI framework for desktop UI | Implemented |
 | On-device STT | april-asr + ONNX Runtime support | Implemented |
-| Audio Capture | Loopback, Microphone, Specific app | Partially Implemented |
+| Audio Capture | Loopback, Microphone, Specific app | Implemented |
 | Autosave Transcript | Save captions to text file | Implemented |
 | Profanity Filter | Filter out profane words | Implemented |
 | Model Managment | Download and manage models | Implemented |
 | Hosting Model | Provide our own models | Coming Soon |
 | Auto-Correction | Correct common recognition errors | Coming Soon |
 | Customization | Text size, colour, background | Implemented |
-| Multi-Platform | Windows, Linux, macOS | Partially Implemented |
+| Multi-Platform | Windows, Linux, macOS | Implemented |
 | Localization | Support multiple languages | Partially Implemented |
 
 ## Acknowledgements
