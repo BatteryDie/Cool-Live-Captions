@@ -11,19 +11,28 @@ title: Cool Live Captions
 
 Cool Live Captions is a free and open source live caption desktop application that converts audio from your microphone or system audio to text in real-time. The speech recognition is powered by april-asr library with ONNX format. The model management allows you to download and switch between different models easily. All processed on-device using your CPU.
 
-Windows and Linux are currently supported. macOS is coming soon. For FAQs and details, please see the [Wiki page](https://github.com/batterydie/cool-live-captions/wiki).
+For FAQs and details, please see the [Wiki page](https://github.com/batterydie/cool-live-captions/wiki).
 
-> Disclaimer: Cool Live Captions is experimental and captions may not be 100% accurate. Please do not rely on it for critical purposes.
+> Disclaimer: The captions may not be 100% accurate. Please do not rely on it for critical purposes.
 
 ## Screenshot
 
-| ![Screenshot of Cool Live Captions on Windows](assets/screenshot01.png) | ![Screenshot of Cool Live Captions on Linux GNOME](assets/screenshot02.png) |
-| --- | --- |
-| Windows 11 ([Full Image](assets/screenshot01.png)) | Linux GNOME ([Full Image](assets/screenshot02.png)) |
+| ![Screenshot of Cool Live Captions on Windows](assets/screenshot01.png) | ![Screenshot of Cool Live Captions on Linux GNOME](assets/screenshot02.png) | ![Screenshot of Cool Live Captions on macOS Tahoe](assets/screenshot03.png) |
+| --- | --- | --- |
+| Windows 11 ([Full Image](assets/screenshot01.png)) | Linux GNOME ([Full Image](assets/screenshot02.png)) | macOS Tahoe ([Full Image](assets/screenshot03.png)) |
+
+## OS Support
+
+- Windows 10 or later via WASAPI (Tested on Windows 11, x86-64 only)
+- Linux 6.x kernel or later via PipeWire (Tested on Debian 13/14 and Ubuntu 22.04/24.04 LTS, x86-64 only)
+- macOS Sonoma 14.4 or later via AudioCore (Tested on macOS Tahoe, Apple Silicon only)
+
+> Note: For macOS version, the Cool Live Captions app is not notarized/signed yet, so you may need to allow it in "System Settings > Security & Privacy" after launching for the first time.
 
 ## Quick Start
 
 1. Download the [latest release](https://github.com/batterydie/cool-live-captions/releases) for your platform.
+   a. For AppImage file, set executable permission via GUI or commandline before running.
 2. Install and launch the Cool Live Captions.
 3. The Cool Live Captions will ask you to download a model first, click "Yes".
 4. Download and install a model from the list.
@@ -32,8 +41,6 @@ Windows and Linux are currently supported. macOS is coming soon. For FAQs and de
 > Important: Our **own** models are under development and will be available soon. You can also use other models provided by abb128's april-asr: [https://abb128.github.io/april-asr/models.html](https://abb128.github.io/april-asr/models.html).
 
 Any issue, please submit on the [GitHub Issues page](https://github.com/batterydie/cool-live-captions/issues).
-
-For AppImage file, set executable permission via GUI or commandline before running.
 
 ## Acknowledgements
 

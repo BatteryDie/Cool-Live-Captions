@@ -229,7 +229,7 @@ set(APP_VERSION_PATCH 0)
 set(APP_VERSION_BUILD 0)
 set(APP_VERSION_STRING "${APP_VERSION_MAJOR}.${APP_VERSION_MINOR}.${APP_VERSION_PATCH}.${APP_VERSION_BUILD}")
 set(APP_COMPANY "Cool Live Captions")
-set(APP_COPYRIGHT "Copyright (c) 2026 Luca Jones")
+set(APP_COPYRIGHT "Copyright © 2026 Luca Jones")
 set(APP_BUNDLE_ID "com.batterydie.coollivecaptions")
 set(APP_MACOS_OUTPUT_NAME "coollivecaptions")
 
