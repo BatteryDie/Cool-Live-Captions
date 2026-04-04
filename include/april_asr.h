@@ -17,6 +17,7 @@ public:
   void push_audio(const std::vector<float> &samples);
   std::optional<std::string> poll_text();
   std::optional<std::string> peek_partial();
+  bool poll_cant_keep_up();
   size_t sample_rate() const;
 
 private:
@@ -30,6 +31,7 @@ private:
   size_t sample_rate_{16000};
   std::queue<std::string> pending_;
   std::optional<std::string> partial_;
+  bool cant_keep_up_pending_{false};
   std::vector<short> pcm16_buffer_;
   std::mutex mutex_;
 };

@@ -89,6 +89,15 @@ std::optional<std::string> AprilAsrEngine::peek_partial() {
   return *partial_;
 }
 
+bool AprilAsrEngine::poll_cant_keep_up() {
+  std::scoped_lock lock(mutex_);
+  if (!cant_keep_up_pending_) {
+    return false;
+  }
+  cant_keep_up_pending_ = false;
+  return true;
+}
+
 size_t AprilAsrEngine::sample_rate() const {
   return sample_rate_;
 }
@@ -128,6 +137,12 @@ void AprilAsrEngine::handle_result(AprilResultType result, size_t count, const A
       pending_.push(std::move(text));
       partial_.reset();
     }
+    return;
+  }
+
+  if (result == APRIL_RESULT_ERROR_CANT_KEEP_UP) {
+    std::scoped_lock lock(mutex_);
+    cant_keep_up_pending_ = true;
     return;
   }
 }

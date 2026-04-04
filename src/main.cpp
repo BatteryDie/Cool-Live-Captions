@@ -880,6 +880,8 @@ int run_app(int argc, char **argv) {
   std::string tr_documentation, tr_release_notes, tr_about;
   std::string tr_close, tr_update_check_wait, tr_update_failed_fmt, tr_update_yes_open_link, tr_update_cancel;
   std::string tr_update_up_to_date_fmt, tr_ok, tr_about_developer_fmt, tr_about_copyright;
+  std::string tr_toast_cant_keep_up;
+  std::string tr_toast_exit_full_screen;
 #if defined(__APPLE__)
   std::string tr_check_permissions;
   std::string tr_perm_title, tr_perm_description;
@@ -925,6 +927,8 @@ int run_app(int argc, char **argv) {
     tr_ok = locale.t("dialog.ok");
     tr_about_developer_fmt = locale.t("about.developer_fmt");
     tr_about_copyright = locale.t("about.copyright");
+    tr_toast_cant_keep_up = locale.t("toast.cant_keep_up");
+    tr_toast_exit_full_screen = locale.t("toast.exit_full_screen");
 #if defined(__APPLE__)
     tr_check_permissions             = locale.t("menu.check_permissions");
     tr_perm_title                    = locale.t("perm.title");
@@ -1097,9 +1101,12 @@ int run_app(int argc, char **argv) {
       audio.set_target_node(std::nullopt);
     }
 #else
-    int src = 1;
+    int src = 0;
     std::string source_label;
-    if (audio_source == AudioSourceKind::Microphone) {
+    if (audio_source == AudioSourceKind::Desktop) {
+      src = 0;
+      source_label = "Desktop";
+    } else if (audio_source == AudioSourceKind::Microphone) {
       src = 1;
       source_label = "Microphone";
     } else {
@@ -1180,6 +1187,9 @@ int run_app(int argc, char **argv) {
   int windowed_y = 0;
   int windowed_w = settings.window_width > 0 ? settings.window_width : 1280;
   int windowed_h = settings.window_height > 0 ? settings.window_height : 720;
+  double cant_keep_up_toast_until = 0.0;
+  double exit_fullscreen_toast_until = 0.0;
+  double cant_keep_up_last_log = 0.0;
   const float appearance_panel_width = 300.0f;
   ImVec4 pending_text_color = settings.text_color;
   ImVec4 pending_background_color = settings.background_color;
@@ -1295,6 +1305,7 @@ int run_app(int argc, char **argv) {
       if (monitor && mode) {
         glfwSetWindowMonitor(window, monitor, 0, 0, mode->width, mode->height, mode->refreshRate);
       }
+      exit_fullscreen_toast_until = glfwGetTime() + 3.0;
     } else {
       glfwSetWindowMonitor(window, nullptr, windowed_x, windowed_y, windowed_w, windowed_h, 0);
     }
@@ -1410,6 +1421,15 @@ int run_app(int argc, char **argv) {
       }
       caption.append(filtered);
       writer.write_line(filtered);
+    }
+
+    if (engine.poll_cant_keep_up()) {
+      cant_keep_up_toast_until = glfwGetTime() + 3.5;
+      double now = glfwGetTime();
+      if (now - cant_keep_up_last_log > 4.0) {
+        log_error("Can't keep up. Please close other applications.");
+        cant_keep_up_last_log = now;
+      }
     }
 
 #if (defined(__linux__) && !defined(__APPLE__)) || defined(_WIN32) || defined(__APPLE__)
@@ -1641,11 +1661,7 @@ int run_app(int argc, char **argv) {
             log_info("No app audio found yet. Auto selection is enabled and will retry every 5 seconds.");
           }
         }
-        std::string select_app_label = tr_select_application;
-        if (selected_app && !selected_app->label.empty()) {
-          select_app_label += " (" + selected_app->label + ")";
-        }
-        if (ImGui::BeginMenu(select_app_label.c_str())) {
+        if (ImGui::BeginMenu(tr_select_application.c_str())) {
           if (ImGui::IsWindowAppearing()) {
             app_list = audio.list_applications();
           }
@@ -2979,6 +2995,41 @@ int run_app(int argc, char **argv) {
     ImGui::End();
     ImGui::PopStyleColor(2);
     ImGui::PopStyleVar();
+
+    auto draw_toast = [&](const char *id, const std::string &text, float y_offset) {
+      const float toast_margin = 20.0f;
+      const ImGuiViewport *viewport = ImGui::GetMainViewport();
+      ImVec2 toast_anchor = ImVec2(viewport->WorkPos.x + viewport->WorkSize.x * 0.5f,
+                                   viewport->WorkPos.y + viewport->WorkSize.y - toast_margin - y_offset);
+      ImGui::SetNextWindowPos(toast_anchor, ImGuiCond_Always, ImVec2(0.5f, 1.0f));
+      ImGui::SetNextWindowBgAlpha(0.92f);
+
+      ImGuiWindowFlags toast_flags = ImGuiWindowFlags_NoDecoration |
+                                     ImGuiWindowFlags_AlwaysAutoResize |
+                                     ImGuiWindowFlags_NoSavedSettings |
+                                     ImGuiWindowFlags_NoFocusOnAppearing |
+                                     ImGuiWindowFlags_NoNav |
+                                     ImGuiWindowFlags_NoMove;
+      ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+      ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(16.0f, 10.0f));
+      ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.13f, 0.13f, 0.13f, 0.92f));
+      ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.96f, 0.96f, 0.96f, 1.0f));
+      if (ImGui::Begin(id, nullptr, toast_flags)) {
+        ImGui::TextUnformatted(text.c_str());
+      }
+      ImGui::End();
+      ImGui::PopStyleColor(2);
+      ImGui::PopStyleVar(2);
+    };
+
+    float toast_stack_offset = 0.0f;
+    if (glfwGetTime() < cant_keep_up_toast_until) {
+      draw_toast("##cant_keep_up_toast", tr_toast_cant_keep_up, toast_stack_offset);
+      toast_stack_offset += 54.0f;
+    }
+    if (fullscreen_enabled && glfwGetTime() < exit_fullscreen_toast_until) {
+      draw_toast("##exit_fullscreen_toast", tr_toast_exit_full_screen, toast_stack_offset);
+    }
 
     ImGui::Render();
     int display_w = 0;

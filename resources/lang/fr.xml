@@ -10,7 +10,7 @@
   <string id="menu.desktop_audio">Audio du bureau</string>
   <string id="menu.microphone">Microphone</string>
   <string id="menu.select_application">Sélectionner une application</string>
-  <string id="menu.auto_selection">Sélection automatique...</string>
+  <string id="menu.auto_selection">Sélection automatique d'application...</string>
   <string id="menu.caption_models">Modèles de sous-titres</string>
   <string id="menu.model_manager">Gestionnaire de modèles...</string>
   <string id="menu.localization">Langue</string>
@@ -98,6 +98,8 @@
   <string id="about.developer_fmt">Développeur : %s</string>
   <string id="about.developer_name">Luca Jones</string>
   <string id="about.copyright">Copyright © 2026 Luca Jones</string>
+  <string id="toast.cant_keep_up">Impossible de suivre - Veuillez fermer une autre application.</string>
+  <string id="toast.exit_full_screen">Appuyez sur F11 pour quitter le plein écran.</string>
 
   <!-- Permission manager (macOS uniquement) -->
   <string id="menu.check_permissions">Vérifier les autorisations...</string>

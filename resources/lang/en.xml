@@ -11,7 +11,7 @@
   <string id="menu.desktop_audio">Desktop Audio</string>
   <string id="menu.microphone">Microphone</string>
   <string id="menu.select_application">Select Application</string>
-  <string id="menu.auto_selection">Auto Selection...</string>
+  <string id="menu.auto_selection">Auto Application Selection...</string>
   <string id="menu.caption_models">Caption Models</string>
   <string id="menu.model_manager">Model Manager...</string>
   <string id="menu.localization">Language</string>
@@ -99,6 +99,8 @@
   <string id="about.developer_fmt">Developer: %s</string>
   <string id="about.developer_name">Luca Jones</string>
   <string id="about.copyright">Copyright © 2026 Luca Jones</string>
+  <string id="toast.cant_keep_up">Can't keep up - Please close other application.</string>
+  <string id="toast.exit_full_screen">Press F11 to exit full screen.</string>
 
   <!-- Permission manager (macOS only) -->
   <string id="menu.check_permissions">Check for Permission...</string>
